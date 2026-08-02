@@ -709,7 +709,7 @@
       const scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x020605, 0.00002);
       const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 2400);
-      camera.position.set(0, 5, 145);
+      camera.position.set(0, 5, 95);
       const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
       renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
       renderer.setSize(innerWidth, innerHeight);
@@ -748,7 +748,7 @@
       let dragY = 0;
       let targetRotationY = 0;
       let targetRotationX = 0;
-      let targetCameraZ = 145;
+      let targetCameraZ = 95;
       const focusWorldTarget = new THREE.Vector3();
       let lastHandX = null;
       let focusOverlayTimer = 0;
