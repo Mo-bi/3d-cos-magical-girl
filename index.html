@@ -1143,56 +1143,110 @@
         });
       }
 
+
+      const IDB_NAME = 'lele-birthday';
+      const IDB_STORE = 'ornaments';
+      let idbPromise = null;
+      function openIdb() {
+        if (idbPromise) return idbPromise;
+        idbPromise = new Promise((resolve, reject) => {
+          if (!('indexedDB' in window)) return reject(new Error('IndexedDB 不可用'));
+          const req = indexedDB.open(IDB_NAME, 1);
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(IDB_STORE)) {
+              db.createObjectStore(IDB_STORE, { keyPath: 'dataUrl' });
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+        return idbPromise;
+      }
+      async function idbSave(entry) {
+        try {
+          const db = await openIdb();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).put(entry);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        } catch (e) { throw e; }
+      }
+      async function idbGetAll() {
+        try {
+          const db = await openIdb();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readonly');
+            const req = tx.objectStore(IDB_STORE).getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+          });
+        } catch (e) { return []; }
+      }
+      async function idbDelete(dataUrl) {
+        try {
+          const db = await openIdb();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).delete(dataUrl);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        } catch (e) {}
+      }
+      async function idbClear() {
+        try {
+          const db = await openIdb();
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).clear();
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        } catch (e) {}
+      }
+
       const STORAGE_KEY = 'lele.birthday.ornaments.v1';
-      const savedOrnamments = readSavedOrnaments();
-      if (savedOrnamments.length) {
-        restoreOrnaments(savedOrnamments);
-      } else {
-        addDemoOrnaments();
-      }
-
-      function readSavedOrnaments() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return [];
-          const parsed = JSON.parse(raw);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch (error) {
-          return [];
+      (async () => {
+        const savedOrnamments = await readSavedOrnaments();
+        if (savedOrnamments.length) {
+          restoreOrnaments(savedOrnamments);
+        } else {
+          addDemoOrnaments();
         }
+      })();
+
+      async function readSavedOrnaments() {
+        return await idbGetAll();
       }
 
-      function persistOrnaments() {
+      async function persistOrnaments() {
         try {
-          const existing = readSavedOrnaments();
+          const existing = await readSavedOrnaments();
           const dataMap = new Map(existing.map((e) => [e.dataUrl, e]));
-          ornaments.forEach((ornament) => {
+          for (const ornament of ornaments) {
             if (ornament.userData.dataUrl) {
-              dataMap.set(ornament.userData.dataUrl, {
+              await idbSave({
                 name: ornament.userData.name,
                 type: ornament.userData.type,
                 dataUrl: ornament.userData.dataUrl
               });
             }
-          });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(dataMap.values())));
+          }
         } catch (error) {
-          showToast('本地存储空间不足，无法保存更多素材');
+          console.error('[lele] persistOrnaments failed', error);
         }
       }
 
-      function saveOrnamentImmediately(name, type, dataUrl) {
+      async function saveOrnamentImmediately(name, type, dataUrl) {
         try {
-          const existing = readSavedOrnaments();
-          const seen = new Set(existing.map((e) => e.dataUrl));
-          if (!seen.has(dataUrl)) {
-            existing.push({ name, type, dataUrl });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
-          }
+          await idbSave({ name, type, dataUrl });
           return true;
         } catch (error) {
           console.error('[lele] 持久化失败', error);
-          showToast('⚠ 存储已满，刷新后素材会丢失，请清空一些素材');
+          showToast('⚠ 持久化失败，请清空一些素材');
           return false;
         }
       }
@@ -1270,7 +1324,7 @@
         if (ornament.userData.url) URL.revokeObjectURL(ornament.userData.url);
         ornaments.splice(index, 1);
         renderOrnamentList();
-        persistOrnaments();
+        if (ornament.userData.dataUrl) idbDelete(ornament.userData.dataUrl);
       }
 
       function calculateFocusScale(ornament) {
@@ -1466,7 +1520,7 @@
         if (!ornaments.length) return showToast('当前没有可清空的素材');
         if (!confirm('确定清空所有素材吗？此操作会同时清除本地保存。')) return;
         while (ornaments.length) removeOrnament(0);
-        localStorage.removeItem(STORAGE_KEY);
+        idbClear();
         addDemoOrnaments();
         showToast('已清空所有素材');
       });
