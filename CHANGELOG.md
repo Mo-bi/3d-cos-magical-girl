@@ -22,7 +22,10 @@
 - 鼠标滚轮范围同步 5-540，灵敏度 0.07 → 0.15
 - cake gl_PointSize 加 min(..., 32.0) 上限，避免近距离粒子过大遮挡
 
-### `<pending>` fix(persist): 上传立即持久化，删除同步 storage
+### `<pending>` fix(persist): 上传立即持久化 + 配额警告
+- saveOrnamentImmediately 返回 boolean 标识保存成功
+- 配额满时显示明确警告 toast（不再被 addOrnament 成功 toast 覆盖）
+- addOrnament 后只在保存成功时显示「已挂载 ✓ 自动保存」
 - 新增 saveOrnamentImmediately：fileToDataUrl 完成后立即写入 localStorage，不等 loader/loadeddata
 - persistOrnaments 改为累加式：保留 storage 中已有 + 当前 ornaments 合并去重
 - removeOrnament 调用 persistOrnaments 同步删除 storage 记录

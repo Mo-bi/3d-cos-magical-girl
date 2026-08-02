@@ -1189,8 +1189,11 @@
             existing.push({ name, type, dataUrl });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
           }
+          return true;
         } catch (error) {
-          showToast('本地存储空间不足，无法保存更多素材');
+          console.error('[lele] 持久化失败', error);
+          showToast('⚠ 存储已满，刷新后素材会丢失，请清空一些素材');
+          return false;
         }
       }
 
@@ -1431,13 +1434,13 @@
       }
 
       function handleSingleFile(file, dataUrl, type) {
-        saveOrnamentImmediately(file.name, type, dataUrl);
+        const saved = saveOrnamentImmediately(file.name, type, dataUrl);
         if (type === 'image') {
           const loader = new THREE.TextureLoader();
           loader.load(dataUrl, (texture) => {
             texture.encoding = THREE.sRGBEncoding;
             const ornament = addOrnament({ name: file.name, texture, type, dataUrl });
-            showToast('照片已保持原比例挂载至生日蛋糕');
+            if (saved) showToast('照片已挂载 ✓ 自动保存');
           });
         } else {
           const media = document.createElement('video');
@@ -1450,7 +1453,7 @@
             const texture = new THREE.VideoTexture(media);
             texture.encoding = THREE.sRGBEncoding;
             const ornament = addOrnament({ name: file.name, texture, type, media, dataUrl });
-            showToast('视频已挂载，捏合即可播放');
+            if (saved) showToast('视频已挂载 ✓ 自动保存');
           }, { once: true });
           media.load();
         }
