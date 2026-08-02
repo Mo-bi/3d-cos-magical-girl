@@ -10,7 +10,7 @@
   - `Three.js` 做 3D 渲染：粒子（Points + 自定义 Shader）、精灵（Sprite）、透视相机、HTML5 Canvas 输出。
   - `MediaPipe Hands` 0.4 做单手 21 关键点检测（仅追踪物理右手）。
   - 原生 `HTML/CSS/JS` 做 UI 面板、屏幕聚焦层、加载层、错误提示。
-  - `localStorage` 持久化所有上传的照片/视频（DataURL）。
+  - `IndexedDB` 持久化所有上传的照片/视频（DataURL，容量几百 MB，突破 localStorage 5MB 限制）。
 - **交互通道**：右手手势 + 鼠标拖拽/滚轮/双击 + 键盘 1–4 / 方向键 / Esc。
 - **可定制主题**：默认占位卡片、粒子祝福文字、控制面板标题都已经在文件中以 `乐乐 / Lele` 主题化。
 
@@ -20,19 +20,21 @@
 
 ```bash
 cd /Users/neo/Documents/neo-code/3d-interaction-systems
-python3 -m http.server 4173 --bind 127.0.0.1
+./serve.sh
 ```
 
-浏览器打开 <http://127.0.0.1:4173>，并授权摄像头。
+看到 `no-cache server on http://127.0.0.1:4173/` 即可。浏览器打开 <http://127.0.0.1:4173> 并授权摄像头。
 
-> 任何静态服务器（`npx serve` / `http-server` / Nginx）都可以，只要走 `http://127.0.0.1`，不要走 `file://`。
+> `./serve.sh` 自带 `Cache-Control: no-store` 响应头，避免 Chrome 缓存旧 HTML。也可直接用 `python3 -m http.server 4173 --bind 127.0.0.1` 或其他任何静态服务器。
 
 ## 3. 文件结构
 
 ```
 3d-interaction-systems/
 ├── index.html          # 全部代码：CSS + DOM + 单文件脚本
-└── README.md           # 本文件
+├── README.md           # 本文件
+├── serve.sh            # 带 no-cache 头的本地服务器
+└── CHANGELOG.md        # 版本变更记录
 ```
 
 整个项目都集中在 `index.html` 中，按以下顺序组织：
@@ -224,3 +226,59 @@ curl -fsS http://127.0.0.1:4173/ | head -c 200
 - 改任何持久化字段名时请同步 `STORAGE_KEY` 版本号，避免老用户的素材被读到新结构里崩。
 
 Happy birthday, 乐乐 🎂
+
+## 14. dev 分支迭代记录
+
+> 以下变更在 `dev` 分支（最新 commit `9534b2f`）。`main` 分支保持 v2.3 release。
+
+### 缩放
+
+| commit | 改动 |
+|--------|------|
+| `5be94c1` | 手掌缩放范围 30–380 → **5–290**，可进入蛋糕内部 |
+| `ea753e0` | 默认相机距离 145 → **95**，蛋糕占视野 65-70% |
+| `fe5317f` | 最远距离 540 → **290**，蛋糕占视野 1/3 |
+
+### 旋转（惯性）
+
+| commit | 改动 |
+|--------|------|
+| `78d98d6` | 鼠标上下拖动俯仰 ±0.7 → **±π**，可完全翻转看到顶部/底部 |
+| `8d85de4` | 引入 `angularVelocity` 角速度变量，挥手产生惯性 |
+| `9919b55` | 反向挥手后衰减回默认方向 |
+| `142dd9c` | 加载默认向右旋转 + 鼠标水平拖动走惯性逻辑（与手势一致） |
+
+### 蛋糕 + 手势
+
+| commit | 改动 |
+|--------|------|
+| `975e4e2` | 三层蛋糕分层调色（底层薄荷+柠檬 / 中层粉红 / 顶层紫+玫红，年轻有活力）；pinch 加 hysteresis（进入 0.34 / 退出 0.48）避免反复确认抖动；捏合时 cake 停止旋转方便选照片；松开后按 `lastWaveDir` 恢复旋转方向 |
+| `8eaa365` | 上传立即持久化（不等 loader/loadeddata 异步）+ 删除同步 storage |
+| `3899d8a` | 持久化失败时显示 ⚠ 警告 toast |
+
+### 持久化（IndexedDB）
+
+| commit | 改动 |
+|--------|------|
+| `9534b2f` | **从 localStorage 迁移到 IndexedDB**，突破 5MB 限制（几百 MB 容量）|
+| 工具函数 | `openIdb` / `idbSave` / `idbGetAll` / `idbDelete` / `idbClear` |
+| 数据 schema | DB: `lele-birthday` / Store: `ornaments` / KeyPath: `dataUrl` |
+| 迁移注意 | 旧 localStorage 数据不会自动迁移，需要手动清空后重新上传 |
+
+## 15. Git 工作流
+
+```bash
+# 开发新功能（在 dev 分支）
+git checkout dev
+git add .
+git commit -m "feat/fix: 描述"
+git push
+
+# 查看所有版本
+git log --oneline
+
+# 回退到某个版本
+git reset --hard <commit-hash>
+git push --force
+```
+
