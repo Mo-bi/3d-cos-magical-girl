@@ -1795,7 +1795,7 @@
         pointer.y = -(event.clientY / innerHeight * 2 - 1);
         if (dragging) {
           targetRotationY += (event.clientX - dragX) * .005;
-          targetRotationX = THREE.MathUtils.clamp(targetRotationX + (event.clientY - dragY) * .005, -.7, .7);
+          targetRotationX = THREE.MathUtils.clamp(targetRotationX + (event.clientY - dragY) * .008, -Math.PI, Math.PI);
           dragX = event.clientX;
           dragY = event.clientY;
         }
