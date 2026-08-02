@@ -858,7 +858,7 @@
               p.xz *= 1.0 + uBurst * (.008 + pulse * .018);
               vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
               gl_Position = projectionMatrix * mvPosition;
-              gl_PointSize = (aSize + uBurst * (.18 + pulse * .52)) * uPixelRatio * (185.0 / -mvPosition.z);
+              gl_PointSize = min((aSize + uBurst * (.18 + pulse * .52)) * uPixelRatio * (185.0 / -mvPosition.z), 32.0);
             }
           `,
           fragmentShader: `
@@ -1626,8 +1626,11 @@
         } else if (gesture.palm) {
           pinchCursor.classList.remove('visible', 'targeting');
           fistStartY = null;
-          targetCameraZ = THREE.MathUtils.clamp(120 + (1 - gesture.palmWidth) * 720, 30, 380);
-          showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} AU`, 100 - (targetCameraZ - 52) / 1.38);
+          const palmMin = 0.05;
+          const palmMax = 0.45;
+          const palmRatio = THREE.MathUtils.clamp((gesture.palmWidth - palmMin) / (palmMax - palmMin), 0, 1);
+          targetCameraZ = THREE.MathUtils.clamp(540 - palmRatio * 535, 5, 540);
+          showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} AU`, Math.round(100 - (targetCameraZ - 5) / 5.35));
         } else {
           pinchCursor.classList.remove('visible', 'targeting');
           fistStartY = null;
@@ -1806,7 +1809,7 @@
       });
       renderer.domElement.addEventListener('pointercancel', () => { dragging = false; });
       renderer.domElement.addEventListener('wheel', (event) => {
-        targetCameraZ = THREE.MathUtils.clamp(targetCameraZ + event.deltaY * .07, 48, 230);
+        targetCameraZ = THREE.MathUtils.clamp(targetCameraZ + event.deltaY * .15, 5, 540);
       }, { passive: true });
       renderer.domElement.addEventListener('dblclick', (event) => {
         pointer.x = event.clientX / innerWidth * 2 - 1;
