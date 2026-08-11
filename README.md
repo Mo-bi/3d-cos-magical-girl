@@ -1,7 +1,7 @@
-# 乐乐生日快乐 · Happy Birthday AR Universe
+# 寒酱魔法秀场 · Magical Cos Showcase (v2.4-cos)
 
-> 一个无需构建步骤的单页 3D 生日 AR 宇宙，给"乐乐"的沉浸式祝福。
-> 浏览器打开就是完整应用：十万粒子生日蛋糕、八大行星 + 流星 + 雪场、3D 照片/视频挂件、捏合/挥手/握拳/数字手势、网易云音乐、可持久化的本地素材库。
+> 一个无需构建步骤的单页 3D cos 展示 AR 宇宙，给"寒酱"魔法少女 cos 主题的沉浸式陈列。
+> 浏览器打开就是完整应用：十万粒子魔法杖 + 五角星魔法阵、八大行星 + 流星 + 雪场、3D 照片/视频挂件、捏合/挥手/握拳/数字手势、网易云音乐、可持久化的本地素材库。
 
 ## 1. 项目一览
 
@@ -55,7 +55,7 @@ cd /Users/neo/Documents/neo-code/3d-interaction-systems
 | 690       | IIFE 入口                    | 抓取 `THREE`，所有 DOM 引用，初始化场景/相机/渲染器。               |
 | 724–728   | `universe` / `treeGroup`     | 根 Group 用来整体平移/缩放；`treeGroup` 承载蛋糕与所有挂件。       |
 | 730–760   | 状态变量                     | `ornaments / focusedOrnament / hoveredOrnament / planets / meteors`。 |
-| 783       | `createCake`                 | 十万粒子三层生日蛋糕（金/粉/奶油色）。详见 §6。                     |
+| 792       | `createCenterpiece`          | 十万粒子魔法少女主题（樱花杖+五角星魔法阵+杖尖三公转星）。详见 §6。 |
 | 810       | `createEnergyCores`          | 蛋糕内部随机分布的能量光团。                                          |
 | 826       | `createCakeTopper`           | 顶部三支蜡烛 + 抖动火焰精灵。                                          |
 | 845       | `createSpaceDust` / `createSnow` | 背景星空 + 全局降雪。                                              |
@@ -229,7 +229,7 @@ Happy birthday, 乐乐 🎂
 
 ## 14. dev 分支迭代记录
 
-> 以下变更在 `dev` 分支（最新 commit `9534b2f`）。`main` 分支保持 v2.3 release。
+> 以下变更在 `dev` 分支（最新 commit `feat/cos-magical-girl`）。`main` 分支保持 v2.3 release。
 
 ### 缩放
 
@@ -255,6 +255,13 @@ Happy birthday, 乐乐 🎂
 | `975e4e2` | 三层蛋糕分层调色（底层薄荷+柠檬 / 中层粉红 / 顶层紫+玫红，年轻有活力）；pinch 加 hysteresis（进入 0.34 / 退出 0.48）避免反复确认抖动；捏合时 cake 停止旋转方便选照片；松开后按 `lastWaveDir` 恢复旋转方向 |
 | `8eaa365` | 上传立即持久化（不等 loader/loadeddata 异步）+ 删除同步 storage |
 | `3899d8a` | 持久化失败时显示 ⚠ 警告 toast |
+
+
+### 主体（cos 化）
+
+| commit | 改动 |
+|--------|------|
+| `feat/cos-magical-girl` | 替换生日蛋糕为魔法少女主题：`createCake` → `createCenterpiece`（10w 粒子分布在杖身/杖身光晕/五角星魔法阵/杖尖樱花/全局飘散五个区域），调色板改为樱花粉+薄藤紫+月白+暖金；`cakeRadiusAtY` → `centerpieceRadiusAtY`（装饰品挂载圆周半径）；能量球改为沿杖身向上飘；顶部三蜡烛替换为三颗公转星+一颗杖尖核心；UI 标题/词表/demo 标签全面换皮。STORAGE_KEY/IDB_NAME 保留以保护已持久化素材。 |
 
 ### 持久化（IndexedDB）
 

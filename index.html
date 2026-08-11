@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <title>乐乐生日快乐 — Happy Birthday AR Universe</title>
+  <title>魔法少女 ✦ 互动宇宙 · Magical Cos Showcase</title>
   <meta name="theme-color" content="#030706" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500&display=swap');
@@ -625,8 +625,8 @@
       <div class="guide">
         <div><b>1</b><span>Happy</span></div>
         <div><b>2</b><span>Birthday</span></div>
-        <div><b>3</b><span>Lele</span></div>
-        <div><b>4</b><span>Happy Birthday Lele</span></div>
+        <div><b>3</b><span>Bloom</span></div>
+        <div><b>4</b><span>Magical Cos</span></div>
       </div>
     </details>
 
@@ -651,8 +651,8 @@
   </aside>
 
   <section class="ui hero-copy">
-    <div class="eyebrow">HAPPY BIRTHDAY · 乐乐</div>
-    <h1>For Lele,<br />with love.</h1>
+    <div class="eyebrow">MAGICAL GIRL · COS</div>
+    <h1>寒酱的<br />魔法秀场.</h1>
     <p>用右手靠近、捏合与释放。<br />鼠标拖拽、滚轮和双击同样可探索。</p>
   </section>
 
@@ -780,52 +780,78 @@
         return new THREE.CanvasTexture(canvas);
       }
 
-      function cakeRadiusAtY(y) {
-        if (y < -18) return 37;
-        if (y < 6) return 29;
-        return 21;
+      function centerpieceRadiusAtY(y) {
+        // 装饰品（照片/视频）围绕魔法杖主体的圆周半径
+        if (y < -28) return 32;
+        if (y < -8) return 38;
+        if (y < 10) return 40;
+        if (y < 24) return 36;
+        return 26;
       }
 
-      function createCake() {
+      function createCenterpiece() {
         const count = 100000;
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const sizes = new Float32Array(count);
         const color = new THREE.Color();
-        const tiers = [
-          { bottom: -46, top: -18, radius: 37, share: .46, palette: [new THREE.Color(0x9be3c8), new THREE.Color(0xffd966), new THREE.Color(0xfff0d7), new THREE.Color(0xb4e0d8), new THREE.Color(0x7dd3b8), new THREE.Color(0xffb3d1)] },
-          { bottom: -17, top: 6, radius: 29, share: .32, palette: [new THREE.Color(0xf4a9bd), new THREE.Color(0xfff0d7), new THREE.Color(0xffd5df), new THREE.Color(0xffa6c9), new THREE.Color(0xff8fb1), new THREE.Color(0xffe5ec)] },
-          { bottom: 7, top: 28, radius: 21, share: .22, palette: [new THREE.Color(0xc8a2ff), new THREE.Color(0xff66a6), new THREE.Color(0xfff0d7), new THREE.Color(0xe8a3ff), new THREE.Color(0xb78dff), new THREE.Color(0xff9ed2)] }
+        const palette = [
+          new THREE.Color(0xffb7d5),
+          new THREE.Color(0xc8a2ff),
+          new THREE.Color(0xfff0fa),
+          new THREE.Color(0xffe699),
+          new THREE.Color(0xff9ed2),
+          new THREE.Color(0xb78dff)
         ];
+        const wandBottom = -30, wandTop = 30, wandRadius = 1.6;
+        const ringY = -30, ringR = 28;
 
         for (let index = 0; index < count; index += 1) {
-          const tierChoice = Math.random();
-          const tier = tierChoice < tiers[0].share ? tiers[0] : tierChoice < tiers[0].share + tiers[1].share ? tiers[1] : tiers[2];
-          const surfaceChoice = Math.random();
-          let y = tier.bottom + Math.random() * (tier.top - tier.bottom);
-          let radius;
-          if (surfaceChoice < .58) {
-            radius = tier.radius * (.92 + Math.random() * .08);
-          } else if (surfaceChoice < .78) {
-            y = tier.top - Math.random() * .65;
-            radius = Math.sqrt(Math.random()) * tier.radius;
+          const roll = Math.random();
+          let y, radius, angle, zone;
+          if (roll < .25) {
+            zone = 'wand';
+            y = wandBottom + Math.random() * (wandTop - wandBottom);
+            radius = wandRadius * (.92 + Math.random() * .14);
+            angle = Math.random() * Math.PI * 2;
+          } else if (roll < .40) {
+            zone = 'wandGlow';
+            y = wandBottom + Math.random() * (wandTop - wandBottom);
+            radius = wandRadius + 1.2 + Math.random() * 4.8;
+            angle = Math.random() * Math.PI * 2;
+          } else if (roll < .65) {
+            zone = 'ring';
+            const t = Math.random();
+            const arm = Math.floor(t * 5);
+            const seg = (t * 5) - arm;
+            radius = ringR * (.42 + seg * (.5 + Math.random() * .08));
+            angle = (arm + seg) * (Math.PI * 2 / 5) - Math.PI / 2;
+            y = ringY + (Math.random() - .5) * 1.6;
+          } else if (roll < .80) {
+            zone = 'bloom';
+            radius = Math.random() * 10;
+            angle = Math.random() * Math.PI * 2;
+            y = wandTop + 1 + Math.random() * 6;
           } else {
-            radius = Math.sqrt(Math.random()) * tier.radius * .94;
+            zone = 'free';
+            radius = 6 + Math.random() * 18;
+            angle = Math.random() * Math.PI * 2;
+            const yBand = Math.random();
+            if (yBand < .35) y = ringY + 2 + Math.random() * 6;
+            else if (yBand < .7) y = wandBottom + 4 + Math.random() * (wandTop - wandBottom - 8);
+            else y = wandTop - 6 + Math.random() * 10;
           }
-          const angle = Math.random() * Math.PI * 2;
           positions[index * 3] = Math.cos(angle) * radius;
           positions[index * 3 + 1] = y;
           positions[index * 3 + 2] = Math.sin(angle) * radius;
 
-          const choice = Math.random();
-          const tierPalette = tier.palette;
-          const nearIcing = tier.top - y < 1.4 || surfaceChoice >= .58 && surfaceChoice < .78;
-          if (nearIcing) color.copy(tierPalette[Math.random() < .78 ? 2 : 1]);
-          else if (choice < .56) color.copy(tierPalette[0]);
-          else if (choice < .78) color.copy(tierPalette[1]);
-          else if (choice < .9) color.copy(tierPalette[3]);
-          else color.copy(tierPalette[Math.random() < .65 ? 4 : 5]);
-          color.multiplyScalar(.72 + Math.random() * .34);
+          const c = Math.random();
+          if (zone === 'wand') color.copy(palette[c < .5 ? 2 : c < .82 ? 1 : 5]);
+          else if (zone === 'wandGlow') color.copy(palette[c < .45 ? 1 : c < .8 ? 0 : 5]);
+          else if (zone === 'ring') color.copy(palette[c < .55 ? 0 : c < .82 ? 3 : 4]);
+          else if (zone === 'bloom') color.copy(palette[c < .65 ? 0 : c < .88 ? 4 : 2]);
+          else color.copy(palette[Math.floor(Math.random() * palette.length)]);
+          color.multiplyScalar(.68 + Math.random() * .36);
           colors[index * 3] = color.r;
           colors[index * 3 + 1] = color.g;
           colors[index * 3 + 2] = color.b;
@@ -871,50 +897,50 @@
             }
           `
         });
-        const cake = new THREE.Points(geometry, material);
-        cake.userData.kind = 'cake';
-        treeGroup.add(cake);
-        return cake;
+        const centerpiece = new THREE.Points(geometry, material);
+        centerpiece.userData.kind = 'centerpiece';
+        treeGroup.add(centerpiece);
+        return centerpiece;
       }
 
       function createEnergyCores() {
-        const texture = makeGlowTexture('#fff0bd');
-        const colors = [0xffd0dc, 0xffdf9b, 0xa7ead2, 0xfff4df];
-        for (let index = 0; index < 28; index += 1) {
-          const y = -42 + Math.random() * 67;
-          const maxRadius = cakeRadiusAtY(y) * .78;
+        const texture = makeGlowTexture('#fff0fa');
+        const colors = [0xffb7d5, 0xc8a2ff, 0xfff0fa, 0xff9ed2];
+        for (let index = 0; index < 32; index += 1) {
+          const t = Math.random();
+          const y = -28 + t * 58;
           const angle = Math.random() * Math.PI * 2;
-          const radius = Math.random() * maxRadius;
-          const material = new THREE.SpriteMaterial({ map: texture, color: colors[index % colors.length], transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: .2 });
+          const radius = 2.4 + Math.random() * (centerpieceRadiusAtY(y) * .32);
+          const material = new THREE.SpriteMaterial({ map: texture, color: colors[index % colors.length], transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: .22 });
           const sprite = new THREE.Sprite(material);
           sprite.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-          const scale = 1.8 + Math.random() * 3.2;
+          const scale = 1.6 + Math.random() * 2.8;
           sprite.scale.setScalar(scale);
-          sprite.userData = { baseScale: scale, phase: Math.random() * Math.PI * 2 };
+          sprite.userData = { baseScale: scale, phase: Math.random() * Math.PI * 2, baseY: y, baseAngle: angle, baseRadius: radius, driftSpeed: .5 + Math.random() * .7 };
           treeGroup.add(sprite);
           energyCores.push(sprite);
         }
       }
 
       const energyCores = [];
-      const cakePoints = createCake();
+      const cakePoints = createCenterpiece();
       createEnergyCores();
 
       function createCakeTopper() {
         const topper = new THREE.Group();
-        const candleColors = [0xff7798, 0xe8c477, 0x72d8ba];
-        [-9, 0, 9].forEach((x, index) => {
-          const candle = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.15, 1.15, 14, 16),
-            new THREE.MeshBasicMaterial({ color: candleColors[index] })
-          );
-          candle.position.set(x, 35, index === 1 ? 0 : 2);
-          const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture('#ffd36d'), color: 0xffd36d, transparent: true, opacity: .7, depthWrite: false, blending: THREE.AdditiveBlending }));
-          flame.position.set(x, 43.2, index === 1 ? 0 : 2);
-          flame.scale.set(6, 8, 1);
-          flame.userData.phase = index * 1.8;
-          topper.add(candle, flame);
-        });
+        const starColors = [0xffd36d, 0xffb7d5, 0xc8a2ff];
+        const orbitRadius = 9;
+        for (let i = 0; i < 3; i += 1) {
+          const star = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture('#fff0fa'), color: starColors[i], transparent: true, opacity: .75, depthWrite: false, blending: THREE.AdditiveBlending }));
+          star.scale.set(5.4, 5.4, 1);
+          star.userData = { phase: i * (Math.PI * 2 / 3), orbitRadius, isOrbiting: true };
+          topper.add(star);
+        }
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture('#fff0fa'), color: 0xfff0fa, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending }));
+        core.scale.set(7.2, 7.2, 1);
+        core.position.set(0, 31, 0);
+        core.userData = { isCore: true };
+        topper.add(core);
         treeGroup.add(topper);
         return topper;
       }
@@ -1118,7 +1144,7 @@
         plane.position.z = .08;
         frame.add(border, plane);
         const y = -38 + Math.random() * 61;
-        const radius = cakeRadiusAtY(y) + 1.8;
+        const radius = centerpieceRadiusAtY(y) + 1.8;
         const angle = Math.random() * Math.PI * 2;
         const home = new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
         frame.position.copy(home);
@@ -1134,7 +1160,7 @@
 
       function addDemoOrnaments() {
         const demos = [
-          ['LELE’S MEMORY', '#b79062'], ['乐乐 · 2026', '#7ba294'], ['MAKE A WISH', '#a56a61']
+          ['COS PLAY', '#b79062'], ['魔法少女', '#7ba294'], ['STAR WISH', '#a56a61']
         ];
         demos.forEach((demo, index) => {
           const texture = makePlaceholderTexture('image', demo[0]);
@@ -1722,7 +1748,7 @@
             if (stableFingerCount === gesture.count) fingerCountFrames += 1;
             else { stableFingerCount = gesture.count; fingerCountFrames = 0; }
             if (fingerCountFrames === 16 && performance.now() - lastWordTime > 1800) {
-              const words = ['Happy', 'Birthday', 'Lele', 'Happy Birthday Lele'];
+              const words = ['Wish', 'Magic', 'Bloom', 'Magical Cos'];
               showParticleWord(words[gesture.count - 1]);
               lastWordTime = performance.now();
             }
@@ -1906,7 +1932,7 @@
       });
 
       addEventListener('keydown', (event) => {
-        if (event.key >= '1' && event.key <= '4') showParticleWord(['Happy', 'Birthday', 'Lele', 'Happy Birthday Lele'][Number(event.key) - 1]);
+        if (event.key >= '1' && event.key <= '4') showParticleWord(['Wish', 'Magic', 'Bloom', 'Magical Cos'][Number(event.key) - 1]);
         if (event.key === 'Escape') releaseOrnament();
         if (event.key === 'ArrowUp') universe.position.y += 4;
         if (event.key === 'ArrowDown') universe.position.y -= 4;
@@ -1951,19 +1977,31 @@
         treeGroup.rotation.x = THREE.MathUtils.lerp(treeGroup.rotation.x, targetRotationX, .04);
         spaceDust.rotation.y += delta * .008;
         cakeTopper.children.forEach((child) => {
-          if (!child.isSprite) return;
-          const flicker = 1 + Math.sin(elapsed * 5.2 + child.userData.phase) * .08;
-          child.scale.set(6 * flicker, 8 * flicker, 1);
-          child.material.opacity = .58 + Math.sin(elapsed * 4.4 + child.userData.phase) * .08;
+          if (child.userData.isOrbiting) {
+            const a = elapsed * .8 + child.userData.phase;
+            child.position.set(Math.cos(a) * child.userData.orbitRadius, 32, Math.sin(a) * child.userData.orbitRadius);
+            const flicker = 1 + Math.sin(elapsed * 5 + child.userData.phase) * .12;
+            child.scale.set(5.4 * flicker, 5.4 * flicker, 1);
+            child.material.opacity = .68 + Math.sin(elapsed * 4.2 + child.userData.phase) * .12;
+          } else if (child.userData.isCore) {
+            const flicker = 1 + Math.sin(elapsed * 6) * .08;
+            child.scale.set(7.2 * flicker, 7.2 * flicker, 1);
+            child.material.opacity = .78 + Math.sin(elapsed * 5) * .1;
+          }
         });
 
         const proximity = THREE.MathUtils.clamp((128 - camera.position.z) / 76, 0, 1);
         cakePoints.material.uniforms.uTime.value = elapsed;
         cakePoints.material.uniforms.uBurst.value = proximity * proximity * .72;
         energyCores.forEach((core) => {
-          const pulse = .82 + Math.sin(elapsed * (1.4 + proximity * 2) + core.userData.phase) * (.1 + proximity * .08);
-          core.scale.setScalar(core.userData.baseScale * pulse * (1 + proximity * .28));
-          core.material.opacity = Math.min(.38, .14 + pulse * .1 + proximity * .08);
+          const u = core.userData;
+          const pulse = .82 + Math.sin(elapsed * (1.4 + proximity * 2) + u.phase) * (.1 + proximity * .08);
+          const driftY = ((elapsed * u.driftSpeed * 6 + u.phase) % 58) - 29;
+          const driftAngle = u.baseAngle + Math.sin(elapsed * .6 + u.phase) * .25;
+          const driftR = u.baseRadius + Math.sin(elapsed * .8 + u.phase) * .8;
+          core.position.set(Math.cos(driftAngle) * driftR, u.baseY * .4 + driftY * .6, Math.sin(driftAngle) * driftR);
+          core.scale.setScalar(u.baseScale * pulse * (1 + proximity * .28));
+          core.material.opacity = Math.min(.42, .14 + pulse * .1 + proximity * .08);
         });
 
         const snowPositions = snow.geometry.attributes.position.array;

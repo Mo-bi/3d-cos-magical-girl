@@ -73,3 +73,26 @@
 - 装饰品列表 + 清空所有素材 + 网易云/本地音乐加载与移除
 - 78% 屏幕安全区放大 + 锁定后冻结目标
 - 控制面板折叠设计 + 1 大于号折叠按钮
+
+---
+
+## [v2.4-cos] — 2026-08-11 (dev 分支，魔法少女 cos 化)
+
+### feat(cos): 主体从生日蛋糕替换为魔法少女主题（樱花杖 + 五角星魔法阵 + 杖尖三公转星）
+- 替换 `createCake` → `createCenterpiece`，10w 粒子分布在五个区域：
+  - 25% 杖身表面（y=-30~30，圆柱半径 1.6，月白+薄藤紫+深紫）
+  - 15% 杖身光晕（围绕杖身扩散晕，薄藤紫+樱花粉+深紫）
+  - 25% 五角星魔法阵（y=-30 水平面，五角星轮廓，樱花粉+暖金+深粉）
+  - 15% 杖尖樱花绽放（y=31~37 球状，樱花粉+深粉+月白）
+  - 20% 全局飘散（围绕主体球壳，自由调色）
+- 调色板重做：樱花粉 0xffb7d5 / 薄藤紫 0xc8a2ff / 月白 0xfff0fa / 暖金 0xffe699 / 深粉 0xff9ed2 / 深紫 0xb78dff
+- `cakeRadiusAtY` → `centerpieceRadiusAtY`，按 y 段返回装饰品挂载圆周半径（32/38/40/36/26），照片/视频围绕魔法杖悬浮
+- 能量球 (`createEnergyCores`) 改为沿杖身向上飘（32 个 sprite，driftSpeed/phase/random 飘动），颜色粉/紫/白
+- 顶部装饰 (`createCakeTopper`) 替换三蜡烛：
+  - 三颗星（金/粉/紫）绕杖尖 y=32 半径 9 公转
+  - 一颗月白核心在杖尖 y=31 闪烁
+- UI 文案："乐乐生日" → "寒酱的魔法秀场 · Magical Cos Showcase"
+- 1-4 指召唤词表：`['Happy', 'Birthday', 'Lele', 'Happy Birthday Lele']` → `['Wish', 'Magic', 'Bloom', 'Magical Cos']`
+- demo 装饰品标签：`LELE'S MEMORY` / `乐乐 · 2026` / `MAKE A WISH` → `COS PLAY` / `魔法少女` / `STAR WISH`
+- 全局 `cakePoints` 变量名保留（指向 `createCenterpiece` 产物，animate 中两处引用无需改）
+- STORAGE_KEY / IDB_NAME / MUSIC_STORAGE_KEY 全部保留，保护用户已持久化的素材数据
