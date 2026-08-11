@@ -1875,30 +1875,55 @@
       function makePhotoPipePair(gapY, gapSize) {
         const group = new THREE.Group();
         const orn = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
+        // 照片按原始宽高比生成（不变形）
+        const photoInfo = orn ? extractOrnamentPhoto(orn) : { width: 5, height: 4 };
+        const pipeH = 14; // 管道总高（照片 + 上下延伸块）
+        const topY = gapY + gapSize / 2 + pipeH / 2;
+        const botY = gapY - gapSize / 2 - pipeH / 2;
+        // 顶部管道：半透明 box + 照片
+        const topBox = new THREE.Mesh(
+          new THREE.BoxGeometry(photoInfo.width + .4, pipeH, 1),
+          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .55, emissive: 0xc8a2ff, emissiveIntensity: .12 })
+        );
+        topBox.position.y = topY;
+        group.add(topBox);
         if (orn) {
-          // 顶部照片管道（从屏幕顶部悬挂）
-          const topPhoto = makePhotoPipePhoto(orn, 'top');
-          topPhoto.position.y = gapY + gapSize / 2 + 8;
+          const topPhoto = makePhotoPipePhoto(orn, photoInfo);
+          topPhoto.position.y = topY - pipeH / 2 + photoInfo.height / 2 + .3;
           group.add(topPhoto);
-          // 底部照片管道
-          const bottomPhoto = makePhotoPipePhoto(orn, 'bottom');
-          bottomPhoto.position.y = gapY - gapSize / 2 - 8;
-          group.add(bottomPhoto);
-        } else {
-          // fallback: 纯色块
-          const topBox = new THREE.Mesh(new THREE.BoxGeometry(5, 16, 1), new THREE.MeshStandardMaterial({ color: 0xc8a2ff, transparent: true, opacity: .75 }));
-          topBox.position.y = gapY + gapSize / 2 + 8;
-          group.add(topBox);
-          const bottomBox = new THREE.Mesh(new THREE.BoxGeometry(5, 16, 1), new THREE.MeshStandardMaterial({ color: 0xc8a2ff, transparent: true, opacity: .75 }));
-          bottomBox.position.y = gapY - gapSize / 2 - 8;
-          group.add(bottomBox);
         }
-        group.userData = { gapY, gapSize, passed: false };
+        // 底部管道
+        const botBox = new THREE.Mesh(
+          new THREE.BoxGeometry(photoInfo.width + .4, pipeH, 1),
+          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .55, emissive: 0xffb7d5, emissiveIntensity: .12 })
+        );
+        botBox.position.y = botY;
+        group.add(botBox);
+        if (orn) {
+          const botPhoto = makePhotoPipePhoto(orn, photoInfo);
+          botPhoto.position.y = botY + pipeH / 2 - photoInfo.height / 2 - .3;
+          group.add(botPhoto);
+        }
+        group.userData = { gapY, gapSize, passed: false, photoWidth: photoInfo.width, photoHeight: photoInfo.height, pipeH };
         return group;
       }
 
-      function makePhotoPipePhoto(orn, side) {
-        // 提取照片的 texture 克隆
+      function extractOrnamentPhoto(orn) {
+        let w = 4, h = 3;
+        orn.traverse((child) => {
+          if (child.isMesh && child.geometry?.parameters) {
+            const p = child.geometry.parameters;
+            if (p.width && p.height) { w = p.width; h = p.height; }
+          }
+        });
+        // 限制最大尺寸
+        if (w > 6) { h = h * 6 / w; w = 6; }
+        if (h > 4) { w = w * 4 / h; h = 4; }
+        return { width: w, height: h };
+      }
+
+      function makePhotoPipePhoto(orn, photoInfo) {
+        // 创建保持原始宽高比的照片 plane
         const group = new THREE.Group();
         orn.traverse((child) => {
           if (child.isMesh && child.material && child.material.map) {
@@ -1906,14 +1931,13 @@
             mat.transparent = true;
             mat.depthTest = false;
             mat.depthWrite = false;
-            const mesh = new THREE.Mesh(child.geometry.clone(), mat);
-            // 缩放到 5x16
-            mesh.scale.set(5 / Math.max(child.geometry.parameters?.width || 1, 1), 16 / Math.max(child.geometry.parameters?.height || 1, 1), 1);
+            const mesh = new THREE.Mesh(
+              new THREE.PlaneGeometry(photoInfo.width, photoInfo.height),
+              mat
+            );
             group.add(mesh);
           }
         });
-        // 上下翻转底部
-        if (side === 'bottom') group.rotation.z = Math.PI;
         return group;
       }
 
@@ -1943,6 +1967,8 @@
         flappyGame.score = 0;
         flappyGame.playerY = 0;
         flappyGame.playerVel = 0;
+        flappyGame._lastPlayerY = 0;
+        flappyGame.targetRefY = .5;
         flappyGame.scrollX = 0;
         flappyGame.pipes = [];
         flappyGame.pipeTimer = 0;
@@ -2045,25 +2071,26 @@
         const upperLip = landmarks[13];
         const lowerLip = landmarks[14];
         const mouthY = (upperLip.y + lowerLip.y) / 2;
-        // 0=上 1=下，归一化到 -1~1
-        const refY = (nose.y + mouthY) / 2;
-        // 摄像头 y 翻转（selfie）
+        // 0=上 1=下；存原始 refY 让 updateFlappyGame 处理翻转
+        flappyGame.targetRefY = refY;
+        // 兼容旧字段
         const screenY = 1 - refY;
-        // 屏幕 y 0~1 -> 玩家 y -12~12
-        flappyGame.targetPlayerY = (screenY - .5) * 24;
+        flappyGame.targetPlayerY = (screenY - .5) * 20;
       }
 
       function updateFlappyGame(time, delta) {
         if (!flappyGame.active) return;
         if (flappyGame.state === 'playing') {
-          // 玩家 y 平滑跟随
-          flappyGame.playerY += (flappyGame.targetPlayerY - flappyGame.playerY) * Math.min(delta * 8, 1);
-          // 物理下落（轻微重力，但脸控制为主）
-          flappyGame.playerVel -= delta * 4;
-          flappyGame.playerY += flappyGame.playerVel * delta;
+          // 玩家 y 跟手：face y 0~1 -> 3D y -10~10
+          // 用屏幕中心做参考，让玩家在视频中"在脸上"
+          const refY = flappyGame.targetRefY !== undefined ? flappyGame.targetRefY : .5;
+          const targetY = -((refY - .5) * 20); // 鼻/嘴在视频顶部 -> 玩家在 3D 顶部 (y=10)
+          flappyGame.playerY += (targetY - flappyGame.playerY) * Math.min(delta * 16, 1);
+          flappyGame.playerVel = (flappyGame.playerY - (flappyGame._lastPlayerY || flappyGame.playerY)) / Math.max(delta, .001);
+          flappyGame._lastPlayerY = flappyGame.playerY;
           // 限制 y 范围
-          if (flappyGame.playerY < -15) flappyGame.playerY = -15;
-          if (flappyGame.playerY > 15) flappyGame.playerY = 15;
+          if (flappyGame.playerY < -12) flappyGame.playerY = -12;
+          if (flappyGame.playerY > 12) flappyGame.playerY = 12;
           if (flappyGame.player) {
             flappyGame.player.position.y = flappyGame.playerY;
             // 玩家跟随脸上下倾斜
