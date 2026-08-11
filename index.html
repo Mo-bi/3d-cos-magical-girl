@@ -1672,7 +1672,8 @@
         const count = fingers.filter(Boolean).length;
         const thumbOpen = distance2D(landmarks[4], landmarks[5]) > palmWidth * .55;
         const fist = count === 0 && !thumbOpen && !pinch;
-        return { pinch, count, fist, palm: count === 4 && thumbOpen, palmWidth, pinchRatio };
+        const palmOk = count >= 3 && thumbOpen && !pinch;
+        return { pinch, count, fist, palm: palmOk, palmWidth, pinchRatio };
       }
 
       function onHandResults(results) {
@@ -1741,11 +1742,11 @@
           pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
           fistStartY = null;
-          const palmMin = 0.05;
-          const palmMax = 0.45;
+          const palmMin = 0.03;
+          const palmMax = 0.55;
           const palmRatio = THREE.MathUtils.clamp((gesture.palmWidth - palmMin) / (palmMax - palmMin), 0, 1);
           targetCameraZ = THREE.MathUtils.clamp(290 - palmRatio * 285, 5, 290);
-          showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} AU`, Math.round(100 - (targetCameraZ - 5) / 2.85));
+          showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} palmW=${gesture.palmWidth.toFixed(2)}`, Math.round(100 - (targetCameraZ - 5) / 2.85));
         } else {
           pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
