@@ -1908,6 +1908,19 @@
       // 上下管道高度独立随机（不对称）
       function randPipeH() { return 10 + Math.random() * 8; }
 
+      // 管道 box 调色板（每个 box 随机选一个颜色 + 对应 emissive）
+      const pipeBoxPalette = [
+        { color: 0x2a1840, emissive: 0xffb7d5 }, // 樱花粉 emissive
+        { color: 0x1a1238, emissive: 0xc8a2ff }, // 薄藤紫 emissive
+        { color: 0x2a1840, emissive: 0xffe699 }, // 暖金 emissive
+        { color: 0x231336, emissive: 0xff9ed2 }, // 深粉 emissive
+        { color: 0x1a0d2e, emissive: 0xb78dff }, // 深紫 emissive
+        { color: 0x2a1840, emissive: 0xfff0fa }, // 月白 emissive
+      ];
+      function pickPipeBoxColor() {
+        return pipeBoxPalette[Math.floor(Math.random() * pipeBoxPalette.length)];
+      }
+
       function makePhotoPipePair(gapY, gapSize) {
         const group = new THREE.Group();
         const topH = randPipeH();
@@ -1917,10 +1930,11 @@
         // 上下两张不同照片
         const ornTop = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
         const ornBot = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
-        // 顶部管道
+        // 顶部管道（随机色）
+        const topStyle = pickPipeBoxColor();
         const topBox = new THREE.Mesh(
           new THREE.BoxGeometry(PIPE_PHOTO_W + .6, topH, 1),
-          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .65, emissive: 0xc8a2ff, emissiveIntensity: .15 })
+          new THREE.MeshStandardMaterial({ color: topStyle.color, transparent: true, opacity: .65, emissive: topStyle.emissive, emissiveIntensity: .2 })
         );
         topBox.position.y = topY;
         group.add(topBox);
@@ -1929,10 +1943,11 @@
           topPhoto.position.y = topY + topH / 2 - PIPE_PHOTO_H / 2 - .4;
           group.add(topPhoto);
         }
-        // 底部管道
+        // 底部管道（独立随机色）
+        const botStyle = pickPipeBoxColor();
         const botBox = new THREE.Mesh(
           new THREE.BoxGeometry(PIPE_PHOTO_W + .6, botH, 1),
-          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .65, emissive: 0xffb7d5, emissiveIntensity: .15 })
+          new THREE.MeshStandardMaterial({ color: botStyle.color, transparent: true, opacity: .65, emissive: botStyle.emissive, emissiveIntensity: .2 })
         );
         botBox.position.y = botY;
         group.add(botBox);
