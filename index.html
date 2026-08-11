@@ -583,7 +583,7 @@
 
   <header class="ui brand">
     <div class="brand-mark">N</div>
-    <div class="brand-copy"><strong>LELE</strong><span>BIRTHDAY UNIVERSE / V2.3</span></div>
+    <div class="brand-copy"><strong>寒酱</strong><span>MAGICAL COS / V2.4</span></div>
   </header>
 
   <div class="ui top-status">
@@ -624,7 +624,7 @@
       <summary>文字定义 / PARTICLE WORDS</summary>
       <div class="guide">
         <div><b>1</b><span>Happy</span></div>
-        <div><b>2</b><span>Birthday</span></div>
+        <div><b>2</b><span>Magic</span></div>
         <div><b>3</b><span>Bloom</span></div>
         <div><b>4</b><span>Magical Cos</span></div>
       </div>
@@ -663,11 +663,11 @@
   </div>
 
   <div id="toast" class="ui toast"></div>
-  <div id="loading" class="loading"><div class="loading-inner"><div class="loading-star">✦</div><p>FORMING THE UNIVERSE</p></div></div>
+  <div id="loading" class="loading"><div class="loading-inner"><div class="loading-star">✦</div><p>SUMMONING THE MAGIC</p></div></div>
   <audio id="music"></audio>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.145.0/build/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://unpkg.com/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="./vendor/three.min.js"></script>
+  <script src="./vendor/hands.js"></script>
   <script>
     window.addEventListener('error', (event) => {
       const message = event?.error?.stack || event?.message || String(event);
@@ -1262,7 +1262,7 @@
             }
           }
         } catch (error) {
-          console.error('[lele] persistOrnaments failed', error);
+          console.error('[cos] persistOrnaments failed', error);
         }
       }
 
@@ -1271,7 +1271,7 @@
           await idbSave({ name, type, dataUrl });
           return true;
         } catch (error) {
-          console.error('[lele] 持久化失败', error);
+          console.error('[cos] 持久化失败', error);
           showToast('⚠ 持久化失败，请清空一些素材');
           return false;
         }
@@ -1586,7 +1586,7 @@
       async function initHands() {
         if (hands) return hands;
         if (!window.Hands) throw new Error('MediaPipe Hands 加载失败');
-        hands = new window.Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}` });
+        hands = new window.Hands({ locateFile: (file) => `./vendor/${file}` });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: .68, minTrackingConfidence: .62, selfieMode: true });
         hands.onResults(onHandResults);
         return hands;
