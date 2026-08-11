@@ -96,3 +96,14 @@
 - demo 装饰品标签：`LELE'S MEMORY` / `乐乐 · 2026` / `MAKE A WISH` → `COS PLAY` / `魔法少女` / `STAR WISH`
 - 全局 `cakePoints` 变量名保留（指向 `createCenterpiece` 产物，animate 中两处引用无需改）
 - STORAGE_KEY / IDB_NAME / MUSIC_STORAGE_KEY 全部保留，保护用户已持久化的素材数据
+
+---
+
+## [v2.4-cos-fork] — 2026-08-11 (项目拆分)
+
+### 仓库物理隔离
+- 创建独立 GitHub repo: `Mo-bi/3d-cos-magical-girl` (cos-origin)
+- cos 化 3 个 commit (49beaac / 28ef241 / b92cd5e) 作为新 repo 初始历史
+- 原 repo `Mo-bi/3d-interaction-systems` (origin) 保留乐乐生日 v2.3 main + dev 迭代
+- 删除原 repo 上的 `feat/cos-magical-girl` 分支（避免混淆）
+- worktree `feat/cos-magical-girl` 保留检出，开发者下次 push 用 `git push cos-origin feat/cos-magical-girl`
