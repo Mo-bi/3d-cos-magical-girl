@@ -516,9 +516,24 @@
       min-width: 220px;
     }
     .flappy-hud.hidden { opacity: 0; pointer-events: none; }
-    .flappy-score { font: 600 20px "Cormorant Garamond", serif; letter-spacing: .12em; color: #ffd1e6; }
-    .flappy-score span { display: inline-block; margin-left: 6px; font-size: 30px; color: #ffe699; transition: transform .25s ease; }
-    .flappy-score span.bump { transform: scale(1.5); }
+    .flappy-score { font: 600 18px "Cormorant Garamond", serif; letter-spacing: .12em; color: #ffd1e6; }
+    .flappy-score span { display: inline-block; margin-left: 6px; font-size: 28px; color: #ffe699; transition: transform .25s ease; text-shadow: 0 0 12px rgba(255, 230, 153, .7); }
+    .flappy-score span.bump { transform: scale(1.6); }
+    /* 屏幕中央巨大的当前分数 */
+    .flappy-score-big {
+      position: fixed;
+      top: 32%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font: 700 120px "Cormorant Garamond", serif;
+      color: rgba(255, 230, 153, .9);
+      text-shadow: 0 0 32px rgba(255, 183, 213, .7), 0 0 64px rgba(200, 162, 255, .5);
+      pointer-events: none;
+      transition: transform .25s ease;
+      z-index: 45;
+    }
+    .flappy-score-big.bump { transform: translate(-50%, -50%) scale(1.4); }
+    .flappy-score-big.hidden { display: none; }
     .flappy-best { font: 9px/1 "Noto Sans SC", sans-serif; letter-spacing: .2em; color: rgba(255, 224, 240, .55); }
     .flappy-best span { color: #ffb7d5; margin-left: 4px; }
     .flappy-hint { font: 9px/1.4 "Noto Sans SC", sans-serif; letter-spacing: .15em; color: rgba(255, 224, 240, .8); text-align: center; }
@@ -605,6 +620,7 @@
   <div class="noise"></div>
   <div class="crosshair"></div>
   <div id="pinch-cursor" class="pinch-cursor"></div>
+  <div id="flappy-score-big" class="flappy-score-big hidden">0</div>
   <div id="flappy-hud" class="flappy-hud hidden">
     <div class="flappy-score">SCORE <span id="flappy-score">0</span></div>
     <div class="flappy-best">BEST <span id="flappy-best">0</span></div>
@@ -1640,12 +1656,13 @@
       }
 
       async function processFaceFrame() {
+        // 永远 reschedule 在前，避免被 return 阻断
+        faceFrameId = requestAnimationFrame(processFaceFrame);
         if (!cameraStream || !faceMesh || faceBusy || !flappyGame.active) return;
-        if (video.readyState < 2) { faceFrameId = requestAnimationFrame(processFaceFrame); return; }
+        if (video.readyState < 2) return;
         faceBusy = true;
         try { await faceMesh.send({ image: video }); } catch (e) { console.warn('Face frame skipped', e); }
         faceBusy = false;
-        faceFrameId = requestAnimationFrame(processFaceFrame);
       }
 
       async function startCamera(deviceId = '') {
@@ -1838,8 +1855,20 @@
       // ===== Flappy 寒酱小游戏 =====
       const flappyHud = document.getElementById('flappy-hud');
       const flappyScoreEl = document.getElementById('flappy-score');
+      const flappyScoreBigEl = document.getElementById('flappy-score-big');
       const flappyBestEl = document.getElementById('flappy-best');
       const flappyHintEl = document.getElementById('flappy-hint');
+
+      function setFlappyScore(n) {
+        flappyScoreEl.textContent = String(n);
+        flappyScoreBigEl.textContent = String(n);
+        flappyScoreEl.classList.remove('bump');
+        flappyScoreBigEl.classList.remove('bump');
+        void flappyScoreEl.offsetWidth;
+        flappyScoreEl.classList.add('bump');
+        flappyScoreBigEl.classList.add('bump');
+        setTimeout(() => flappyScoreBigEl.classList.remove('bump'), 300);
+      }
       let faceFrameId = null;
 
       function makeHanJiangSprite() {
@@ -1872,58 +1901,50 @@
         return sprite;
       }
 
+      // 统一照片尺寸（按 4:3 比例放大到 7x5.25，让照片在屏幕上清晰可见）
+      const PIPE_PHOTO_W = 7;
+      const PIPE_PHOTO_H = 5.25;
+      // 上下管道高度独立随机（不对称）
+      function randPipeH() { return 10 + Math.random() * 8; }
+
       function makePhotoPipePair(gapY, gapSize) {
         const group = new THREE.Group();
-        const orn = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
-        // 照片按原始宽高比生成（不变形）
-        const photoInfo = orn ? extractOrnamentPhoto(orn) : { width: 5, height: 4 };
-        const pipeH = 14; // 管道总高（照片 + 上下延伸块）
-        const topY = gapY + gapSize / 2 + pipeH / 2;
-        const botY = gapY - gapSize / 2 - pipeH / 2;
-        // 顶部管道：半透明 box + 照片
+        const topH = randPipeH();
+        const botH = randPipeH();
+        const topY = gapY + gapSize / 2 + topH / 2;
+        const botY = gapY - gapSize / 2 - botH / 2;
+        // 上下两张不同照片
+        const ornTop = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
+        const ornBot = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
+        // 顶部管道
         const topBox = new THREE.Mesh(
-          new THREE.BoxGeometry(photoInfo.width + .4, pipeH, 1),
-          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .55, emissive: 0xc8a2ff, emissiveIntensity: .12 })
+          new THREE.BoxGeometry(PIPE_PHOTO_W + .6, topH, 1),
+          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .65, emissive: 0xc8a2ff, emissiveIntensity: .15 })
         );
         topBox.position.y = topY;
         group.add(topBox);
-        if (orn) {
-          const topPhoto = makePhotoPipePhoto(orn, photoInfo);
-          topPhoto.position.y = topY - pipeH / 2 + photoInfo.height / 2 + .3;
+        if (ornTop) {
+          const topPhoto = makePhotoPipePhoto(ornTop);
+          topPhoto.position.y = topY + topH / 2 - PIPE_PHOTO_H / 2 - .4;
           group.add(topPhoto);
         }
         // 底部管道
         const botBox = new THREE.Mesh(
-          new THREE.BoxGeometry(photoInfo.width + .4, pipeH, 1),
-          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .55, emissive: 0xffb7d5, emissiveIntensity: .12 })
+          new THREE.BoxGeometry(PIPE_PHOTO_W + .6, botH, 1),
+          new THREE.MeshStandardMaterial({ color: 0x2a1840, transparent: true, opacity: .65, emissive: 0xffb7d5, emissiveIntensity: .15 })
         );
         botBox.position.y = botY;
         group.add(botBox);
-        if (orn) {
-          const botPhoto = makePhotoPipePhoto(orn, photoInfo);
-          botPhoto.position.y = botY + pipeH / 2 - photoInfo.height / 2 - .3;
+        if (ornBot) {
+          const botPhoto = makePhotoPipePhoto(ornBot);
+          botPhoto.position.y = botY - botH / 2 + PIPE_PHOTO_H / 2 + .4;
           group.add(botPhoto);
         }
-        group.userData = { gapY, gapSize, passed: false, photoWidth: photoInfo.width, photoHeight: photoInfo.height, pipeH };
+        group.userData = { gapY, gapSize, passed: false, topH, botH, topY, botY, topBox: PIPE_PHOTO_W + .6 };
         return group;
       }
 
-      function extractOrnamentPhoto(orn) {
-        let w = 4, h = 3;
-        orn.traverse((child) => {
-          if (child.isMesh && child.geometry?.parameters) {
-            const p = child.geometry.parameters;
-            if (p.width && p.height) { w = p.width; h = p.height; }
-          }
-        });
-        // 限制最大尺寸
-        if (w > 6) { h = h * 6 / w; w = 6; }
-        if (h > 4) { w = w * 4 / h; h = 4; }
-        return { width: w, height: h };
-      }
-
-      function makePhotoPipePhoto(orn, photoInfo) {
-        // 创建保持原始宽高比的照片 plane
+      function makePhotoPipePhoto(orn) {
         const group = new THREE.Group();
         orn.traverse((child) => {
           if (child.isMesh && child.material && child.material.map) {
@@ -1931,10 +1952,23 @@
             mat.transparent = true;
             mat.depthTest = false;
             mat.depthWrite = false;
-            const mesh = new THREE.Mesh(
-              new THREE.PlaneGeometry(photoInfo.width, photoInfo.height),
-              mat
-            );
+            // 固定 7x5.25 大小，按原始宽高比 fit inside
+            const p = child.geometry.parameters || {};
+            const srcW = p.width || 4;
+            const srcH = p.height || 3;
+            const srcAspect = srcW / srcH;
+            const dstAspect = PIPE_PHOTO_W / PIPE_PHOTO_H;
+            let planeW, planeH;
+            if (srcAspect > dstAspect) {
+              // 原图更宽，按宽适配
+              planeW = PIPE_PHOTO_W;
+              planeH = PIPE_PHOTO_W / srcAspect;
+            } else {
+              // 原图更高，按高适配
+              planeH = PIPE_PHOTO_H;
+              planeW = PIPE_PHOTO_H * srcAspect;
+            }
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
             group.add(mesh);
           }
         });
@@ -1986,7 +2020,8 @@
         targetCameraZ = 38;
         targetFov = 60;
         flappyHud.classList.remove('hidden');
-        flappyScoreEl.textContent = '0';
+        flappyScoreBigEl.classList.remove('hidden');
+        setFlappyScore(0);
         flappyBestEl.textContent = String(flappyGame.best);
         updateFlappyHint('嘴/鼻上下控制 · 单手 palm 退出');
         // 启动 face mesh
@@ -2011,15 +2046,16 @@
         if (faceFrameId) cancelAnimationFrame(faceFrameId);
         faceFrameId = null;
         flappyHud.classList.add('hidden');
+        flappyScoreBigEl.classList.add('hidden');
         targetCameraZ = 95;
         targetFov = 55;
         if (camera) camera.position.set(0, 5, 95);
       }
 
       function spawnFlappyPipe() {
-        // 间隙 y 在 -4 到 4 之间随机
-        const gapY = (Math.random() - .5) * 8;
-        const gapSize = 9;
+        // 间隙 y 随机 -8~8，gap 尺寸 5.5（玩家范围 ±12，不动 y=0 会被撞）
+        const gapY = (Math.random() - .5) * 16;
+        const gapSize = 5.5;
         const pipe = makePhotoPipePair(gapY, gapSize);
         const startX = 20;
         pipe.position.x = startX;
@@ -2052,7 +2088,7 @@
         flappyGame.scrollX = 0;
         flappyGame.pipeTimer = 0;
         flappyGame.state = 'playing';
-        flappyScoreEl.textContent = '0';
+        setFlappyScore(0);
         updateFlappyHint('嘴/鼻上下控制 · 单手 palm 退出');
       }
 
@@ -2071,20 +2107,25 @@
         const upperLip = landmarks[13];
         const lowerLip = landmarks[14];
         const mouthY = (upperLip.y + lowerLip.y) / 2;
-        // 0=上 1=下；存原始 refY 让 updateFlappyGame 处理翻转
+        // 用鼻尖 + 嘴部中点做参考 y
+        const refY = (nose.y + mouthY) / 2;
+        // MediaPipe 输出 y=0 是视频顶部，y=1 是底部
+        // 3D 场景 y 正方向是上，所以 refY=0 (脸靠上) -> 玩家 y=+10
+        // 直接 refY -> 3D y 映射
         flappyGame.targetRefY = refY;
-        // 兼容旧字段
-        const screenY = 1 - refY;
-        flappyGame.targetPlayerY = (screenY - .5) * 20;
+        flappyGame.faceDetected = true;
+        // 同步旧字段
+        flappyGame.targetPlayerY = (1 - refY - .5) * 20;
       }
 
       function updateFlappyGame(time, delta) {
         if (!flappyGame.active) return;
         if (flappyGame.state === 'playing') {
-          // 玩家 y 跟手：face y 0~1 -> 3D y -10~10
-          // 用屏幕中心做参考，让玩家在视频中"在脸上"
+          // 玩家 y 跟手：face y 0~1 -> 3D y +10~-10
+          // refY=0 (脸在视频顶部) -> 3D y=+10 (顶部)
+          // refY=1 (脸在视频底部) -> 3D y=-10 (底部)
           const refY = flappyGame.targetRefY !== undefined ? flappyGame.targetRefY : .5;
-          const targetY = -((refY - .5) * 20); // 鼻/嘴在视频顶部 -> 玩家在 3D 顶部 (y=10)
+          const targetY = (refY - .5) * 20; // 直接映射，无翻转
           flappyGame.playerY += (targetY - flappyGame.playerY) * Math.min(delta * 16, 1);
           flappyGame.playerVel = (flappyGame.playerY - (flappyGame._lastPlayerY || flappyGame.playerY)) / Math.max(delta, .001);
           flappyGame._lastPlayerY = flappyGame.playerY;
@@ -2110,12 +2151,12 @@
           for (let i = flappyGame.pipes.length - 1; i >= 0; i -= 1) {
             const pipe = flappyGame.pipes[i];
             pipe.position.x -= delta * 5;
-            // 检测碰撞
+            // 检测碰撞：player x 范围（中心 ±2.5 因为 player sprite 宽 8）
             const px = flappyGame.player ? flappyGame.player.position.x : -6;
             const py = flappyGame.playerY;
             const pipeX = pipe.position.x;
-            if (Math.abs(px - pipeX) < 2.5) {
-              // x 范围重叠
+            const pipeHalfW = (pipe.userData.topBox || 7) / 2;
+            if (Math.abs(px - pipeX) < pipeHalfW) {
               const gapY = pipe.userData.gapY;
               const gapSize = pipe.userData.gapSize;
               if (py > gapY + gapSize / 2 || py < gapY - gapSize / 2) {
@@ -2127,10 +2168,7 @@
             if (!pipe.userData.passed && pipeX < px - 2) {
               pipe.userData.passed = true;
               flappyGame.score += 1;
-              flappyScoreEl.textContent = String(flappyGame.score);
-              flappyScoreEl.classList.remove('bump');
-              void flappyScoreEl.offsetWidth;
-              flappyScoreEl.classList.add('bump');
+              setFlappyScore(flappyGame.score);
             }
             // 移除屏幕外的
             if (pipe.position.x < -25) {
