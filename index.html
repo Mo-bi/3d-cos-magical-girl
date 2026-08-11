@@ -1705,7 +1705,7 @@
         lastHandX = handX;
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
-        const screenX = 1 - (thumbTip.x + indexTip.x) * .5;
+        const screenX = (thumbTip.x + indexTip.x) * .5;
         const screenY = (thumbTip.y + indexTip.y) * .5;
         const screenNdcX = screenX * 2 - 1;
         const screenNdcY = -(screenY * 2 - 1);
