@@ -289,3 +289,19 @@ git reset --hard <commit-hash>
 git push --force
 ```
 
+
+## 15. 本地 vendor（v2.4-cos 起）
+
+为解决国内访问 `cdn.jsdelivr.net` / `unpkg.com` 慢导致卡在 loading 页的问题，所有第三方依赖改为 `vendor/` 目录本地引用（6.3MB）：
+
+| 文件 | 大小 | 用途 |
+|------|------|------|
+| `vendor/three.min.js` | 588KB | Three.js R145 |
+| `vendor/hands.js` | 44KB | MediaPipe Hands 0.4 入口 |
+| `vendor/hands.binarypb` | 550B | MediaPipe 计算图 |
+| `vendor/hands_solution_packed_assets_loader.js` | 8KB | data 文件加载器 |
+| `vendor/hands_solution_packed_assets.data` | 4.1MB | 内含 palm_detection tflite 模型 |
+| `vendor/hands_solution_wasm_bin.js` | 270KB | WASM（非 SIMD） |
+| `vendor/hands_solution_simd_wasm_bin.js` | 270KB | WASM（SIMD） |
+
+`Hands` 构造时 `locateFile: (file) => ./vendor/${file}` 指向本地。
