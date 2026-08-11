@@ -652,6 +652,7 @@
         <label for="image-upload"><b>＋</b><span>添加照片</span></label>
         <label for="video-upload"><b>▶</b><span>添加视频</span></label>
       </div>
+      <button id="enter-flappy-btn" class="primary" style="margin-top:10px;background:linear-gradient(90deg,#ffb7d5,#c8a2ff);color:#fff;border:none;">✦ 进入寒酱飞翔（鼠标）</button>
       <input id="image-upload" class="file-input" type="file" accept="image/*" multiple />
       <input id="video-upload" class="file-input" type="file" accept="video/*" multiple />
       <div id="ornament-list" class="ornament-list"></div>
@@ -2008,6 +2009,7 @@
         flappyGame.pipeTimer = 0;
         flappyGame.twoHandsPalmStart = 0;
         flappyGame.oneHandPalmStart = 0;
+        flappyGame.cooldownUntil = 0;
         ornaments.forEach((o) => { flappyGame.originalOrnamentVisibility.set(o, o.visible); o.visible = false; });
         if (typeof cakePoints !== 'undefined' && cakePoints) cakePoints.visible = false;
         if (typeof energyCores !== 'undefined') energyCores.forEach((c) => { flappyGame.originalOrnamentVisibility.set(c, c.visible); c.visible = false; });
@@ -2085,9 +2087,13 @@
         flappyGame.score = 0;
         flappyGame.playerY = 0;
         flappyGame.playerVel = 0;
+        flappyGame._lastPlayerY = 0;
+        flappyGame.targetRefY = .5;
         flappyGame.scrollX = 0;
         flappyGame.pipeTimer = 0;
         flappyGame.state = 'playing';
+        flappyGame.oneHandPalmStart = 0; // 重置防止立即再次触发
+        flappyGame.cooldownUntil = performance.now() + 600; // 600ms 内不响应 palm
         setFlappyScore(0);
         updateFlappyHint('嘴/鼻上下控制 · 单手 palm 退出');
       }
@@ -2195,7 +2201,8 @@
         const g2 = classifyGesture(hands[1]);
         if (g1.palm && g2.palm) {
           if (!flappyGame.twoHandsPalmStart) flappyGame.twoHandsPalmStart = performance.now();
-          if (performance.now() - flappyGame.twoHandsPalmStart > 300) {
+          // 0.5s 更稳，避免手掌微动被中断
+          if (performance.now() - flappyGame.twoHandsPalmStart > 500) {
             flappyGame.twoHandsPalmStart = 0;
             enterFlappyGame();
             return true;
@@ -2206,15 +2213,21 @@
         return false;
       }
 
+      function enterFlappyGameViaButton() {
+        // 鼠标按钮兜底：直接进入
+        enterFlappyGame();
+      }
+
       function handleFlappyInput(results) {
         if (!flappyGame.active) return;
+        // cooldown 期间不响应
+        if (flappyGame.cooldownUntil && performance.now() < flappyGame.cooldownUntil) return;
         const hands = results.multiHandLandmarks || [];
-        // 单手 palm 持续 0.3s 退出 / 重玩
         if (hands.length >= 1) {
           const g = classifyGesture(hands[0]);
           if (g.palm) {
             if (!flappyGame.oneHandPalmStart) flappyGame.oneHandPalmStart = performance.now();
-            if (performance.now() - flappyGame.oneHandPalmStart > 300) {
+            if (performance.now() - flappyGame.oneHandPalmStart > 400) {
               flappyGame.oneHandPalmStart = 0;
               if (flappyGame.state === 'failed') {
                 retryFlappy();
@@ -2241,6 +2254,18 @@
         hands.onResults(onHandResultsCallback);
       }
 
+      document.getElementById('enter-flappy-btn').addEventListener('click', () => {
+        if (!cameraStream) {
+          showToast('请先启动摄像头以进入游戏');
+          return;
+        }
+        if (flappyGame.active) {
+          if (flappyGame.state === 'failed') retryFlappy();
+          else exitFlappyGame();
+        } else {
+          enterFlappyGameViaButton();
+        }
+      });
       cameraToggle.addEventListener('click', () => cameraStream ? stopCamera() : startCamera(cameraSelect.value));
       cameraSelect.addEventListener('change', () => { if (cameraStream) startCamera(cameraSelect.value); });
       navigator.mediaDevices?.addEventListener?.('devicechange', enumerateCameras);
