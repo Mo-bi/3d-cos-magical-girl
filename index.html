@@ -1672,7 +1672,8 @@
         const count = fingers.filter(Boolean).length;
         const thumbOpen = distance2D(landmarks[4], landmarks[5]) > palmWidth * .55;
         const fist = count === 0 && !thumbOpen && !pinch;
-        const palmOk = count >= 3 && thumbOpen && !pinch;
+        // palm 放宽到 2 指 + thumbOpen，避免无名指/小指稍弯就掉到 finger signal
+        const palmOk = thumbOpen && !pinch && (count >= 2 || (count >= 1 && palmWidth > 0.15));
         return { pinch, count, fist, palm: palmOk, palmWidth, pinchRatio };
       }
 
@@ -1975,7 +1976,7 @@
         requestAnimationFrame(animate);
         const delta = Math.min(clock.getDelta(), .05);
         const elapsed = clock.elapsedTime;
-        camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCameraZ, .045);
+        camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCameraZ, .12);
         if (Math.abs(angularVelocity) > BASE_ANGULAR) {
           const signedBase = Math.sign(angularVelocity) * BASE_ANGULAR;
           angularVelocity = THREE.MathUtils.lerp(angularVelocity, signedBase, Math.min(delta * ANGULAR_DECAY, 1));
