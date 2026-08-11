@@ -1657,8 +1657,8 @@
 
       function classifyGesture(landmarks) {
         const pinchDistance = distance2D(landmarks[4], landmarks[8]);
-        const pinchRatio = pinchDistance / Math.max(palmWidth, 0.001);
         const palmWidth = distance2D(landmarks[5], landmarks[17]);
+        const pinchRatio = pinchDistance / Math.max(palmWidth, 0.001);
         const pinchEnter = palmWidth * .28;
         const pinchExit = palmWidth * .42;
         if (!isPinchingState && pinchDistance < pinchEnter) isPinchingState = true;
