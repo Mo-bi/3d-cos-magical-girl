@@ -2131,7 +2131,7 @@
           // refY=0 (脸在视频顶部) -> 3D y=+10 (顶部)
           // refY=1 (脸在视频底部) -> 3D y=-10 (底部)
           const refY = flappyGame.targetRefY !== undefined ? flappyGame.targetRefY : .5;
-          const targetY = (refY - .5) * 20; // 直接映射，无翻转
+          const targetY = (.5 - refY) * 20; // 鼻视频顶部 (refY=0) -> 3D 顶部 (y=+10)，一致
           flappyGame.playerY += (targetY - flappyGame.playerY) * Math.min(delta * 16, 1);
           flappyGame.playerVel = (flappyGame.playerY - (flappyGame._lastPlayerY || flappyGame.playerY)) / Math.max(delta, .001);
           flappyGame._lastPlayerY = flappyGame.playerY;
