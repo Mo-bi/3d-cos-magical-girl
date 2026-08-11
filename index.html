@@ -1898,13 +1898,13 @@
         tex.encoding = THREE.sRGBEncoding;
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
         const sprite = new THREE.Sprite(mat);
-        sprite.scale.set(8, 4, 1);
+        sprite.scale.set(14, 7, 1);
         return sprite;
       }
 
       // 统一照片尺寸（按 4:3 比例放大到 7x5.25，让照片在屏幕上清晰可见）
-      const PIPE_PHOTO_W = 7;
-      const PIPE_PHOTO_H = 5.25;
+      const PIPE_PHOTO_W = 14;
+      const PIPE_PHOTO_H = 10.5;
       // 上下管道高度独立随机（不对称）
       function randPipeH() { return 10 + Math.random() * 8; }
 
@@ -2056,8 +2056,8 @@
 
       function spawnFlappyPipe() {
         // 间隙 y 随机 -8~8，gap 尺寸 5.5（玩家范围 ±12，不动 y=0 会被撞）
-        const gapY = (Math.random() - .5) * 16;
-        const gapSize = 5.5;
+        const gapY = (Math.random() - .5) * 18;
+        const gapSize = 11;
         const pipe = makePhotoPipePair(gapY, gapSize);
         const startX = 20;
         pipe.position.x = startX;
@@ -2131,13 +2131,13 @@
           // refY=0 (脸在视频顶部) -> 3D y=+10 (顶部)
           // refY=1 (脸在视频底部) -> 3D y=-10 (底部)
           const refY = flappyGame.targetRefY !== undefined ? flappyGame.targetRefY : .5;
-          const targetY = (.5 - refY) * 20; // 鼻视频顶部 (refY=0) -> 3D 顶部 (y=+10)，一致
+          const targetY = (.5 - refY) * 32; // 鼻视频顶部 (refY=0) -> 3D 顶部 (y=+16)，一致
           flappyGame.playerY += (targetY - flappyGame.playerY) * Math.min(delta * 16, 1);
           flappyGame.playerVel = (flappyGame.playerY - (flappyGame._lastPlayerY || flappyGame.playerY)) / Math.max(delta, .001);
           flappyGame._lastPlayerY = flappyGame.playerY;
           // 限制 y 范围
-          if (flappyGame.playerY < -12) flappyGame.playerY = -12;
-          if (flappyGame.playerY > 12) flappyGame.playerY = 12;
+          if (flappyGame.playerY < -16) flappyGame.playerY = -16;
+          if (flappyGame.playerY > 16) flappyGame.playerY = 16;
           if (flappyGame.player) {
             flappyGame.player.position.y = flappyGame.playerY;
             // 玩家跟随脸上下倾斜
