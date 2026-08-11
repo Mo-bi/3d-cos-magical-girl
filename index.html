@@ -495,6 +495,34 @@
     .pinch-cursor.visible { opacity: 1; transform: scale(1); }
     .pinch-cursor.targeting { background: #64d5ff; transform: scale(1.35); }
 
+    .flappy-hud {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 28px;
+      border: 1px solid rgba(255, 183, 213, .35);
+      border-radius: 22px;
+      background: rgba(20, 8, 30, .55);
+      backdrop-filter: blur(14px);
+      color: #f5e9d8;
+      pointer-events: none;
+      transition: opacity .3s ease;
+      z-index: 50;
+      min-width: 220px;
+    }
+    .flappy-hud.hidden { opacity: 0; pointer-events: none; }
+    .flappy-score { font: 600 20px "Cormorant Garamond", serif; letter-spacing: .12em; color: #ffd1e6; }
+    .flappy-score span { display: inline-block; margin-left: 6px; font-size: 30px; color: #ffe699; transition: transform .25s ease; }
+    .flappy-score span.bump { transform: scale(1.5); }
+    .flappy-best { font: 9px/1 "Noto Sans SC", sans-serif; letter-spacing: .2em; color: rgba(255, 224, 240, .55); }
+    .flappy-best span { color: #ffb7d5; margin-left: 4px; }
+    .flappy-hint { font: 9px/1.4 "Noto Sans SC", sans-serif; letter-spacing: .15em; color: rgba(255, 224, 240, .8); text-align: center; }
+
     .media-focus-overlay {
       position: fixed;
       z-index: 40;
@@ -577,6 +605,11 @@
   <div class="noise"></div>
   <div class="crosshair"></div>
   <div id="pinch-cursor" class="pinch-cursor"></div>
+  <div id="flappy-hud" class="flappy-hud hidden">
+    <div class="flappy-score">SCORE <span id="flappy-score">0</span></div>
+    <div class="flappy-best">BEST <span id="flappy-best">0</span></div>
+    <div class="flappy-hint" id="flappy-hint">嘴/鼻上下控制 · 避开照片</div>
+  </div>
   <div id="media-focus-overlay" class="media-focus-overlay"></div>
   <aside id="control-panel" class="ui panel" tabindex="0">
     <button id="panel-toggle" class="panel-toggle" aria-label="折叠或展开控制菜单" title="折叠 / 展开">×</button>
@@ -668,6 +701,7 @@
 
   <script src="./vendor/three.min.js"></script>
   <script src="./vendor/hands.js"></script>
+  <script src="./vendor/face_mesh.js"></script>
   <script>
     window.addEventListener('error', (event) => {
       const message = event?.error?.stack || event?.message || String(event);
@@ -1589,9 +1623,28 @@
         if (hands) return hands;
         if (!window.Hands) throw new Error('MediaPipe Hands 加载失败');
         hands = new window.Hands({ locateFile: (file) => `./vendor/${file}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: .68, minTrackingConfidence: .62, selfieMode: true });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: .68, minTrackingConfidence: .62, selfieMode: true });
         hands.onResults(onHandResults);
         return hands;
+      }
+
+      let faceMesh = null;
+      let faceBusy = false;
+      async function initFaceMesh() {
+        if (faceMesh) return faceMesh;
+        faceMesh = new window.FaceMesh({ locateFile: (file) => `./vendor/${file}` });
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: .5, minTrackingConfidence: .5, selfieMode: true });
+        faceMesh.onResults(onFaceResults);
+        return faceMesh;
+      }
+
+      async function processFaceFrame() {
+        if (!cameraStream || !faceMesh || faceBusy || !flappyGame.active) return;
+        if (video.readyState < 2) { faceFrameId = requestAnimationFrame(processFaceFrame); return; }
+        faceBusy = true;
+        try { await faceMesh.send({ image: video }); } catch (e) { console.warn('Face frame skipped', e); }
+        faceBusy = false;
+        faceFrameId = requestAnimationFrame(processFaceFrame);
       }
 
       async function startCamera(deviceId = '') {
@@ -1778,6 +1831,347 @@
           }
         }
         lastPinch = gesture.pinch;
+      }
+
+      // ===== Flappy 寒酱小游戏 =====
+      const flappyHud = document.getElementById('flappy-hud');
+      const flappyScoreEl = document.getElementById('flappy-score');
+      const flappyBestEl = document.getElementById('flappy-best');
+      const flappyHintEl = document.getElementById('flappy-hint');
+      let faceFrameId = null;
+
+      function makeHanJiangSprite() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 寒酱 两字
+        ctx.font = 'bold 200px "PingFang SC", "Microsoft YaHei", "Heiti SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // 描边
+        ctx.lineWidth = 12;
+        ctx.strokeStyle = 'rgba(255, 255, 255, .9)';
+        ctx.strokeText('寒', 170, 130);
+        ctx.strokeText('酱', 340, 130);
+        // 渐变填充
+        const grad = ctx.createLinearGradient(0, 40, 0, 220);
+        grad.addColorStop(0, '#ffd1e6');
+        grad.addColorStop(.5, '#ffb7d5');
+        grad.addColorStop(1, '#c8a2ff');
+        ctx.fillStyle = grad;
+        ctx.fillText('寒', 170, 130);
+        ctx.fillText('酱', 340, 130);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.encoding = THREE.sRGBEncoding;
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(8, 4, 1);
+        return sprite;
+      }
+
+      function makePhotoPipePair(gapY, gapSize) {
+        const group = new THREE.Group();
+        const orn = ornaments.length ? ornaments[Math.floor(Math.random() * ornaments.length)] : null;
+        if (orn) {
+          // 顶部照片管道（从屏幕顶部悬挂）
+          const topPhoto = makePhotoPipePhoto(orn, 'top');
+          topPhoto.position.y = gapY + gapSize / 2 + 8;
+          group.add(topPhoto);
+          // 底部照片管道
+          const bottomPhoto = makePhotoPipePhoto(orn, 'bottom');
+          bottomPhoto.position.y = gapY - gapSize / 2 - 8;
+          group.add(bottomPhoto);
+        } else {
+          // fallback: 纯色块
+          const topBox = new THREE.Mesh(new THREE.BoxGeometry(5, 16, 1), new THREE.MeshStandardMaterial({ color: 0xc8a2ff, transparent: true, opacity: .75 }));
+          topBox.position.y = gapY + gapSize / 2 + 8;
+          group.add(topBox);
+          const bottomBox = new THREE.Mesh(new THREE.BoxGeometry(5, 16, 1), new THREE.MeshStandardMaterial({ color: 0xc8a2ff, transparent: true, opacity: .75 }));
+          bottomBox.position.y = gapY - gapSize / 2 - 8;
+          group.add(bottomBox);
+        }
+        group.userData = { gapY, gapSize, passed: false };
+        return group;
+      }
+
+      function makePhotoPipePhoto(orn, side) {
+        // 提取照片的 texture 克隆
+        const group = new THREE.Group();
+        orn.traverse((child) => {
+          if (child.isMesh && child.material && child.material.map) {
+            const mat = child.material.clone();
+            mat.transparent = true;
+            mat.depthTest = false;
+            mat.depthWrite = false;
+            const mesh = new THREE.Mesh(child.geometry.clone(), mat);
+            // 缩放到 5x16
+            mesh.scale.set(5 / Math.max(child.geometry.parameters?.width || 1, 1), 16 / Math.max(child.geometry.parameters?.height || 1, 1), 1);
+            group.add(mesh);
+          }
+        });
+        // 上下翻转底部
+        if (side === 'bottom') group.rotation.z = Math.PI;
+        return group;
+      }
+
+      const flappyGame = {
+        active: false,
+        state: 'idle', // 'playing' | 'failed'
+        player: null,
+        pipes: [],
+        score: 0,
+        best: 0,
+        targetPlayerY: 0,
+        playerY: 0,
+        playerVel: 0,
+        scrollX: 0,
+        pipeTimer: 0,
+        nextPipeDistance: 12,
+        twoHandsPalmStart: 0,
+        oneHandPalmStart: 0,
+        failedTime: 0,
+        originalOrnamentVisibility: new Map(),
+        faceActive: false,
+      };
+
+      function enterFlappyGame() {
+        flappyGame.active = true;
+        flappyGame.state = 'playing';
+        flappyGame.score = 0;
+        flappyGame.playerY = 0;
+        flappyGame.playerVel = 0;
+        flappyGame.scrollX = 0;
+        flappyGame.pipes = [];
+        flappyGame.pipeTimer = 0;
+        flappyGame.twoHandsPalmStart = 0;
+        flappyGame.oneHandPalmStart = 0;
+        ornaments.forEach((o) => { flappyGame.originalOrnamentVisibility.set(o, o.visible); o.visible = false; });
+        if (typeof cakePoints !== 'undefined' && cakePoints) cakePoints.visible = false;
+        if (typeof energyCores !== 'undefined') energyCores.forEach((c) => { flappyGame.originalOrnamentVisibility.set(c, c.visible); c.visible = false; });
+        if (typeof cakeTopper !== 'undefined') cakeTopper.visible = false;
+        // 玩家
+        flappyGame.player = makeHanJiangSprite();
+        flappyGame.player.position.set(-6, 0, 0);
+        scene.add(flappyGame.player);
+        // 背景暗化
+        targetCameraZ = 38;
+        targetFov = 60;
+        flappyHud.classList.remove('hidden');
+        flappyScoreEl.textContent = '0';
+        flappyBestEl.textContent = String(flappyGame.best);
+        updateFlappyHint('嘴/鼻上下控制 · 单手 palm 退出');
+        // 启动 face mesh
+        if (!faceMesh) initFaceMesh();
+        flappyGame.faceActive = true;
+        processFaceFrame();
+      }
+
+      function exitFlappyGame() {
+        if (!flappyGame.active) return;
+        if (flappyGame.player) scene.remove(flappyGame.player);
+        flappyGame.pipes.forEach((p) => scene.remove(p));
+        flappyGame.pipes = [];
+        flappyGame.originalOrnamentVisibility.forEach((visible, obj) => { obj.visible = visible; });
+        flappyGame.originalOrnamentVisibility.clear();
+        if (typeof cakePoints !== 'undefined' && cakePoints) cakePoints.visible = true;
+        if (typeof energyCores !== 'undefined') energyCores.forEach((c) => { c.visible = true; });
+        if (typeof cakeTopper !== 'undefined') cakeTopper.visible = true;
+        flappyGame.active = false;
+        flappyGame.state = 'idle';
+        flappyGame.faceActive = false;
+        if (faceFrameId) cancelAnimationFrame(faceFrameId);
+        faceFrameId = null;
+        flappyHud.classList.add('hidden');
+        targetCameraZ = 95;
+        targetFov = 55;
+        if (camera) camera.position.set(0, 5, 95);
+      }
+
+      function spawnFlappyPipe() {
+        // 间隙 y 在 -4 到 4 之间随机
+        const gapY = (Math.random() - .5) * 8;
+        const gapSize = 9;
+        const pipe = makePhotoPipePair(gapY, gapSize);
+        const startX = 20;
+        pipe.position.x = startX;
+        scene.add(pipe);
+        flappyGame.pipes.push(pipe);
+      }
+
+      function failFlappy() {
+        if (flappyGame.state !== 'playing') return;
+        flappyGame.state = 'failed';
+        flappyGame.failedTime = performance.now();
+        if (flappyGame.score > flappyGame.best) flappyGame.best = flappyGame.score;
+        flappyBestEl.textContent = String(flappyGame.best);
+        updateFlappyHint(`失败 · 分数 ${flappyGame.score} · 单手 palm 重新开始`);
+      }
+
+      function retryFlappy() {
+        // 清空场景
+        flappyGame.pipes.forEach((p) => scene.remove(p));
+        flappyGame.pipes = [];
+        if (flappyGame.player) {
+          scene.remove(flappyGame.player);
+          flappyGame.player = makeHanJiangSprite();
+          flappyGame.player.position.set(-6, 0, 0);
+          scene.add(flappyGame.player);
+        }
+        flappyGame.score = 0;
+        flappyGame.playerY = 0;
+        flappyGame.playerVel = 0;
+        flappyGame.scrollX = 0;
+        flappyGame.pipeTimer = 0;
+        flappyGame.state = 'playing';
+        flappyScoreEl.textContent = '0';
+        updateFlappyHint('嘴/鼻上下控制 · 单手 palm 退出');
+      }
+
+      function updateFlappyHint(text) {
+        if (typeof text === 'string') flappyHintEl.textContent = text;
+      }
+
+      function onFaceResults(results) {
+        if (!flappyGame.active || !flappyGame.player) return;
+        const landmarks = results.multiFaceLandmarks?.[0];
+        if (!landmarks) return;
+        // 嘴部中心 ≈ landmark 13 (上唇外) + landmark 14 (下唇外) 中点
+        // 鼻尖 = landmark 1
+        // 用鼻尖 y 驱动
+        const nose = landmarks[1];
+        const upperLip = landmarks[13];
+        const lowerLip = landmarks[14];
+        const mouthY = (upperLip.y + lowerLip.y) / 2;
+        // 0=上 1=下，归一化到 -1~1
+        const refY = (nose.y + mouthY) / 2;
+        // 摄像头 y 翻转（selfie）
+        const screenY = 1 - refY;
+        // 屏幕 y 0~1 -> 玩家 y -12~12
+        flappyGame.targetPlayerY = (screenY - .5) * 24;
+      }
+
+      function updateFlappyGame(time, delta) {
+        if (!flappyGame.active) return;
+        if (flappyGame.state === 'playing') {
+          // 玩家 y 平滑跟随
+          flappyGame.playerY += (flappyGame.targetPlayerY - flappyGame.playerY) * Math.min(delta * 8, 1);
+          // 物理下落（轻微重力，但脸控制为主）
+          flappyGame.playerVel -= delta * 4;
+          flappyGame.playerY += flappyGame.playerVel * delta;
+          // 限制 y 范围
+          if (flappyGame.playerY < -15) flappyGame.playerY = -15;
+          if (flappyGame.playerY > 15) flappyGame.playerY = 15;
+          if (flappyGame.player) {
+            flappyGame.player.position.y = flappyGame.playerY;
+            // 玩家跟随脸上下倾斜
+            const tilt = THREE.MathUtils.clamp(flappyGame.playerVel * .04, -.5, .5);
+            flappyGame.player.material.rotation = tilt;
+          }
+          // 横向卷轴
+          flappyGame.scrollX += delta * 5;
+          // 砖块生成
+          flappyGame.pipeTimer += delta;
+          if (flappyGame.pipeTimer > flappyGame.nextPipeDistance) {
+            spawnFlappyPipe();
+            flappyGame.pipeTimer = 0;
+            flappyGame.nextPipeDistance = 4 + Math.random() * 2;
+          }
+          // 砖块向左移动
+          for (let i = flappyGame.pipes.length - 1; i >= 0; i -= 1) {
+            const pipe = flappyGame.pipes[i];
+            pipe.position.x -= delta * 5;
+            // 检测碰撞
+            const px = flappyGame.player ? flappyGame.player.position.x : -6;
+            const py = flappyGame.playerY;
+            const pipeX = pipe.position.x;
+            if (Math.abs(px - pipeX) < 2.5) {
+              // x 范围重叠
+              const gapY = pipe.userData.gapY;
+              const gapSize = pipe.userData.gapSize;
+              if (py > gapY + gapSize / 2 || py < gapY - gapSize / 2) {
+                failFlappy();
+                return;
+              }
+            }
+            // 计分
+            if (!pipe.userData.passed && pipeX < px - 2) {
+              pipe.userData.passed = true;
+              flappyGame.score += 1;
+              flappyScoreEl.textContent = String(flappyGame.score);
+              flappyScoreEl.classList.remove('bump');
+              void flappyScoreEl.offsetWidth;
+              flappyScoreEl.classList.add('bump');
+            }
+            // 移除屏幕外的
+            if (pipe.position.x < -25) {
+              scene.remove(pipe);
+              flappyGame.pipes.splice(i, 1);
+            }
+          }
+        } else if (flappyGame.state === 'failed') {
+          // 失败动画
+          if (flappyGame.player) {
+            flappyGame.playerY -= delta * 12;
+            flappyGame.player.position.y = flappyGame.playerY;
+            flappyGame.player.material.rotation += delta * 4;
+            if (flappyGame.playerY < -20) flappyGame.player.visible = false;
+          }
+        }
+      }
+
+      // ===== onHandResults 顶部加游戏检测 =====
+      function checkEnterFlappyGame(results) {
+        const hands = results.multiHandLandmarks || [];
+        if (hands.length !== 2) { flappyGame.twoHandsPalmStart = 0; return false; }
+        const g1 = classifyGesture(hands[0]);
+        const g2 = classifyGesture(hands[1]);
+        if (g1.palm && g2.palm) {
+          if (!flappyGame.twoHandsPalmStart) flappyGame.twoHandsPalmStart = performance.now();
+          if (performance.now() - flappyGame.twoHandsPalmStart > 300) {
+            flappyGame.twoHandsPalmStart = 0;
+            enterFlappyGame();
+            return true;
+          }
+        } else {
+          flappyGame.twoHandsPalmStart = 0;
+        }
+        return false;
+      }
+
+      function handleFlappyInput(results) {
+        if (!flappyGame.active) return;
+        const hands = results.multiHandLandmarks || [];
+        // 单手 palm 持续 0.3s 退出 / 重玩
+        if (hands.length >= 1) {
+          const g = classifyGesture(hands[0]);
+          if (g.palm) {
+            if (!flappyGame.oneHandPalmStart) flappyGame.oneHandPalmStart = performance.now();
+            if (performance.now() - flappyGame.oneHandPalmStart > 300) {
+              flappyGame.oneHandPalmStart = 0;
+              if (flappyGame.state === 'failed') {
+                retryFlappy();
+              } else {
+                exitFlappyGame();
+              }
+              return;
+            }
+          } else {
+            flappyGame.oneHandPalmStart = 0;
+          }
+        } else {
+          flappyGame.oneHandPalmStart = 0;
+        }
+      }
+
+      const _origOnHandResults = onHandResults;
+      window.onHandResults = function (results) {
+        if (!flappyGame.active && checkEnterFlappyGame(results)) return;
+        if (flappyGame.active) { handleFlappyInput(results); return; }
+        _origOnHandResults(results);
+      };
+      if (typeof hands !== 'undefined' && hands) {
+        hands.onResults(window.onHandResults);
       }
 
       cameraToggle.addEventListener('click', () => cameraStream ? stopCamera() : startCamera(cameraSelect.value));
@@ -1987,6 +2381,7 @@
         requestAnimationFrame(animate);
         const delta = Math.min(clock.getDelta(), .05);
         const elapsed = clock.elapsedTime;
+        updateFlappyGame(time, delta);
         camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCameraZ, .12);
         if (Math.abs(camera.fov - targetFov) > .1) {
           camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, .12);
