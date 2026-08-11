@@ -755,6 +755,7 @@
       const BASE_ANGULAR = .18;
       const ANGULAR_DECAY = 1.6;
       let targetCameraZ = 95;
+      let targetFov = 55;
       const focusWorldTarget = new THREE.Vector3();
       let lastHandX = null;
       let focusOverlayTimer = 0;
@@ -1747,7 +1748,9 @@
           const palmMax = 0.55;
           const palmRatio = THREE.MathUtils.clamp((gesture.palmWidth - palmMin) / (palmMax - palmMin), 0, 1);
           targetCameraZ = THREE.MathUtils.clamp(290 - palmRatio * 285, 5, 290);
-          showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} palmW=${gesture.palmWidth.toFixed(2)}`, Math.round(100 - (targetCameraZ - 5) / 2.85));
+          // FOV 联动：手近时 FOV 缩小（远摄感），手远时 FOV 拉大（广角感），视觉缩放更明显
+          targetFov = THREE.MathUtils.clamp(80 - palmRatio * 55, 25, 80);
+          showGesture('🖐', 'PALM / ZOOM', `距 ${Math.round(targetCameraZ)} fov ${Math.round(targetFov)}° palmW=${gesture.palmWidth.toFixed(2)}`, Math.round(100 - (targetCameraZ - 5) / 2.85));
         } else {
           pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
@@ -1977,6 +1980,10 @@
         const delta = Math.min(clock.getDelta(), .05);
         const elapsed = clock.elapsedTime;
         camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCameraZ, .12);
+        if (Math.abs(camera.fov - targetFov) > .1) {
+          camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, .12);
+          camera.updateProjectionMatrix();
+        }
         if (Math.abs(angularVelocity) > BASE_ANGULAR) {
           const signedBase = Math.sign(angularVelocity) * BASE_ANGULAR;
           angularVelocity = THREE.MathUtils.lerp(angularVelocity, signedBase, Math.min(delta * ANGULAR_DECAY, 1));
