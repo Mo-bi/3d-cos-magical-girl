@@ -766,6 +766,7 @@
       let hoveredOrnament = null;
       let focusedOrnament = null;
       let cameraStream = null;
+      let onHandResultsCallback = null;
       let hands = null;
       let handsBusy = false;
       let handLoopFrame = 0;
@@ -1624,7 +1625,7 @@
         if (!window.Hands) throw new Error('MediaPipe Hands 加载失败');
         hands = new window.Hands({ locateFile: (file) => `./vendor/${file}` });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: .68, minTrackingConfidence: .62, selfieMode: true });
-        hands.onResults(onHandResults);
+        hands.onResults(onHandResultsCallback);
         return hands;
       }
 
@@ -1832,6 +1833,7 @@
         }
         lastPinch = gesture.pinch;
       }
+      onHandResultsCallback = onHandResults;
 
       // ===== Flappy 寒酱小游戏 =====
       const flappyHud = document.getElementById('flappy-hud');
@@ -2165,13 +2167,13 @@
       }
 
       const _origOnHandResults = onHandResults;
-      window.onHandResults = function (results) {
+      onHandResultsCallback = function (results) {
         if (!flappyGame.active && checkEnterFlappyGame(results)) return;
         if (flappyGame.active) { handleFlappyInput(results); return; }
         _origOnHandResults(results);
       };
       if (typeof hands !== 'undefined' && hands) {
-        hands.onResults(window.onHandResults);
+        hands.onResults(onHandResultsCallback);
       }
 
       cameraToggle.addEventListener('click', () => cameraStream ? stopCamera() : startCamera(cameraSelect.value));
