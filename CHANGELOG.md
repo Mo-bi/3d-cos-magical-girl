@@ -107,3 +107,36 @@
 - 原 repo `Mo-bi/3d-interaction-systems` (origin) 保留乐乐生日 v2.3 main + dev 迭代
 - 删除原 repo 上的 `feat/cos-magical-girl` 分支（避免混淆）
 - worktree `feat/cos-magical-girl` 保留检出，开发者下次 push 用 `git push cos-origin feat/cos-magical-girl`
+
+---
+
+## [v2.5-cos-flappy] — 2026-08-11 (dev / feat/cos-magical-girl 分支，寒酱飞翔小游戏)
+
+### 寒酱飞翔（Flappy Bird 风格 3D 小游戏）
+- 双手 palm 持续 0.5s 进入 / 菜单按钮（鼠标）兜底
+- 玩家："寒酱"两字（canvas 离屏 + 白描边 + 粉紫渐变 Sprite，14×7）
+- 障碍物：随机选 ornaments 照片做上下成对管道（14×10.5 保持原宽高比）
+- 上下两张照片独立从 ornaments 数组随机
+- 上下管道高度独立随机 10-18（参差不齐）
+- 管道 box 底色 + emissive 6 色调色板随机
+- gap 11 单位，gap y 随机 -9~9
+- 玩家 y 范围 ±16，targetY = (.5 - refY) * 32
+- 嘴/鼻 y 驱动：MediaPipe Face Mesh 0.4 鼻尖 (landmark 1) + 嘴部中心 (13/14) y
+- 单手 palm 0.4s 退出 / 失败时 = 重试（带 600ms cooldown 防立即再次触发）
+- 计分：穿过一对管道 +1，120px 中央巨大 SCORE 数字 + bump 缩放动画
+- 失败动画：玩家掉下去 + 旋转
+- HIDDEN 装饰品 + 中心粒子 / 能量球 / 顶部装饰（退出恢复）
+
+### MediaPipe 资源
+- 新增 `@mediapipe/face_mesh@0.4` 全部 7 个依赖到 vendor/（17MB），让 Flappy 游戏中并行运行 Hands + FaceMesh
+- Hands 资源：hand_landmark_full.tflite + 2 个 wasm binary（f0022e2 补全）
+- vendor 总大小：41MB（全部本地化，国内访问无 CDN 慢加载问题）
+
+### 手势 bug 修复
+- `aa31e4d` 修复 `classifyGesture` TDZ ReferenceError 导致 palm 缩放完全失效（dev 蛋糕能跑，cos 杖失效的根因）
+- `95356c5` 捏合光标水平方向镜像反向
+- `205066a` 1 指手势持续 16 帧触发随机弹出一张照片到屏幕前面
+- `8aabc99` palm 判定放宽到 2 指 + thumbOpen + camera lerp .045 → .12
+- `2398b03` palm 缩放加 FOV 联动（25-80°）
+- `f0022e2` 补全 Hands vendor 缺失文件
+- `c82799a` 修复 onHandResults 双向绑定到 onHandResultsCallback

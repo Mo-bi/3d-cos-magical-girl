@@ -1,7 +1,7 @@
 # 寒酱魔法秀场 · Magical Cos Showcase (v2.4-cos)
 
 > 一个无需构建步骤的单页 3D cos 展示 AR 宇宙，给"寒酱"魔法少女 cos 主题的沉浸式陈列。
-> 浏览器打开就是完整应用：十万粒子魔法杖 + 五角星魔法阵、八大行星 + 流星 + 雪场、3D 照片/视频挂件、捏合/挥手/握拳/数字手势、网易云音乐、可持久化的本地素材库。
+> 浏览器打开就是完整应用：十万粒子魔法杖 + 五角星魔法阵、八大行星 + 流星 + 雪场、3D 照片/视频挂件、捏合/挥手/握拳/数字手势 + **寒酱飞翔 Flappy Bird 小游戏（嘴/鼻驱动）**、网易云音乐、可持久化的本地素材库。
 
 ## 1. 项目一览
 
@@ -229,7 +229,7 @@ Happy birthday, 乐乐 🎂
 
 ## 14. dev 分支迭代记录
 
-> 以下变更在 `dev` 分支（最新 commit `feat/cos-magical-girl`）。`main` 分支保持 v2.3 release。
+> 以下变更在 `feat/cos-magical-girl` 分支（独立 GitHub repo `Mo-bi/3d-cos-magical-girl`，最新 commit 见末尾）。`dev` / `main` 分支在原 `Mo-bi/3d-interaction-systems` 仓库保留 v2.3 乐乐生日版本。
 
 ### 缩放
 
@@ -262,6 +262,36 @@ Happy birthday, 乐乐 🎂
 | commit | 改动 |
 |--------|------|
 | `feat/cos-magical-girl` | 替换生日蛋糕为魔法少女主题：`createCake` → `createCenterpiece`（10w 粒子分布在杖身/杖身光晕/五角星魔法阵/杖尖樱花/全局飘散五个区域），调色板改为樱花粉+薄藤紫+月白+暖金；`cakeRadiusAtY` → `centerpieceRadiusAtY`（装饰品挂载圆周半径）；能量球改为沿杖身向上飘；顶部三蜡烛替换为三颗公转星+一颗杖尖核心；UI 标题/词表/demo 标签全面换皮。STORAGE_KEY/IDB_NAME 保留以保护已持久化素材。 |
+
+### 手势 bug 修复
+
+| commit | 改动 |
+|--------|------|
+| `aa31e4d` | 修复 `classifyGesture` TDZ ReferenceError（`pinchRatio` 引用了未定义的 `palmWidth`），导致 palm 缩放完全失效 |
+| `2398b03` | palm 缩放加 FOV 联动（25-80°），让 cos 主体魔法杖也能明显看到缩放（dev 蛋糕对称，cos 杖细长） |
+| `8aabc99` | palm 判定放宽 `count===4` → `count>=2`，camera lerp .045 → .12 |
+| `95356c5` | 捏合光标水平方向镜像反向（去掉 1 -） |
+| `205066a` | 1 指手势持续 16 帧触发随机弹出一张照片到屏幕前面 |
+
+### 寒酱飞翔小游戏（Flappy Bird 风格）
+
+| commit | 改动 |
+|--------|------|
+| `7c41750` | 集成 3D 寒酱飞翔：双手 palm 0.3s 进入；玩家 = "寒酱"两字（canvas 离屏 + 白描边 + 粉紫渐变 Sprite）；障碍物 = 随机选 ornaments 照片做上下成对管道；嘴/鼻 y 驱动玩家上下；横向卷轴；接住计分 |
+| `c82799a` | 修复 onHandResults 双向绑定 bug（initHands 同步绑定时 wrapper 还未定义） |
+| `919bf0c` | 照片管道不变形（按原始宽高比 fit inside 7×5.25）；玩家 y 跟手映射 |
+| `fc5549b` | processFaceFrame 永远 reschedule 在前；上下两张照片独立随机；上下管道高度独立随机 10-18（参差不齐）；gap 5.5 + y 随机 -8~8；分数加 120px 中央大显示 |
+| `f24083a` | retry/exit 冲突（retry 后 palm 残留导致立即 exit）；双 palm 进入放宽到 0.5s；菜单加鼠标入口按钮 |
+| `323ea3a` | 鼻/嘴 y 方向镜像到 3D 场景（`(.5-refY)*20`） |
+| `fc6b496` | 照片管道大一倍（7×5.25 → 14×10.5）；玩家 sprite 14×7；gap 11；玩家 y 范围 ±16 |
+| `94176c1` | 管道 box 底色 + emissive 6 色调色板随机（每对管道顶/底独立随机） |
+
+### MediaPipe Hands 资源本地化
+
+| commit | 改动 |
+|--------|------|
+| `f0022e2` | 补全 vendor 缺失文件：`hand_landmark_full.tflite`（5.5MB）、`hands_solution_wasm_bin.wasm`（5.9MB）、`hands_solution_simd_wasm_bin.wasm`（6.0MB）。playwright 验证 0 个 404 |
+| `face_mesh` 集成 | 新增 `@mediapipe/face_mesh@0.4` 全部 7 个依赖文件（17MB）到 `vendor/`，让 Flappy 游戏中并行运行 Hands + FaceMesh |
 
 ### 持久化（IndexedDB）
 
