@@ -739,6 +739,7 @@
       let universeStartY = 0;
       let lastPinch = false;
       let isPinchingState = false;
+      let pinchFrames = 0;
       let lastWaveDir = 1;
       let stableFingerCount = 0;
       let fingerCountFrames = 0;
@@ -1078,6 +1079,52 @@
 
       const textParticles = createTextParticles();
       const textParticleColor = new THREE.Color();
+
+      function createBackgroundText(text, anchorX, anchorY, anchorZ, colorHex, scale) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 720; canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 560px "PingFang SC", "Microsoft YaHei", "Heiti SC", "STHeiti", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const samples = [];
+        for (let y = 0; y < canvas.height; y += 4) {
+          for (let x = 0; x < canvas.width; x += 4) {
+            const idx = (y * canvas.width + x) * 4;
+            if (data[idx] > 128) samples.push([x, y]);
+          }
+        }
+        const count = samples.length;
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const baseColor = new THREE.Color(colorHex);
+        for (let i = 0; i < count; i += 1) {
+          positions[i * 3] = anchorX + (samples[i][0] - canvas.width / 2) * scale;
+          positions[i * 3 + 1] = anchorY - (samples[i][1] - canvas.height / 2) * scale;
+          positions[i * 3 + 2] = anchorZ;
+          const tint = .75 + Math.random() * .25;
+          colors[i * 3] = baseColor.r * tint;
+          colors[i * 3 + 1] = baseColor.g * tint;
+          colors[i * 3 + 2] = baseColor.b * tint;
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({ size: 1.0, vertexColors: true, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending });
+        const points = new THREE.Points(geometry, material);
+        points.userData = { baseX: anchorX, baseY: anchorY, baseZ: anchorZ, phase: Math.random() * Math.PI * 2, phase2: Math.random() * Math.PI * 2 };
+        scene.add(points);
+        return points;
+      }
+
+      const hanText = createBackgroundText('寒', -22, 8, -10, 0xffb7d5, .06);
+      const jiangText = createBackgroundText('酱', 22, 8, -10, 0xc8a2ff, .06);
 
       function showParticleWord(text) {
         const canvas = document.createElement('canvas');
@@ -1655,9 +1702,10 @@
 
       function classifyGesture(landmarks) {
         const pinchDistance = distance2D(landmarks[4], landmarks[8]);
+        const pinchRatio = pinchDistance / Math.max(palmWidth, 0.001);
         const palmWidth = distance2D(landmarks[5], landmarks[17]);
-        const pinchEnter = palmWidth * .34;
-        const pinchExit = palmWidth * .48;
+        const pinchEnter = palmWidth * .28;
+        const pinchExit = palmWidth * .42;
         if (!isPinchingState && pinchDistance < pinchEnter) isPinchingState = true;
         else if (isPinchingState && pinchDistance > pinchExit) isPinchingState = false;
         const pinch = isPinchingState;
@@ -1670,7 +1718,7 @@
         const count = fingers.filter(Boolean).length;
         const thumbOpen = distance2D(landmarks[4], landmarks[5]) > palmWidth * .55;
         const fist = count === 0 && !thumbOpen && !pinch;
-        return { pinch, count, fist, palm: count === 4 && thumbOpen, palmWidth };
+        return { pinch, count, fist, palm: count === 4 && thumbOpen, palmWidth, pinchRatio };
       }
 
       function onHandResults(results) {
@@ -1707,11 +1755,12 @@
 
         if (gesture.pinch) {
           angularVelocity = 0;
+          pinchFrames += 1;
           pinchCursor.style.left = `${screenX * 100}%`;
           pinchCursor.style.top = `${screenY * 100}%`;
           pinchCursor.classList.add('visible');
-          if (!focusedOrnament && !lastPinch) {
-            const nearest = nearestOrnamentToScreen(screenNdcX, screenNdcY, .3);
+          if (!focusedOrnament && pinchFrames === 2) {
+            const nearest = nearestOrnamentToScreen(screenNdcX, screenNdcY, .4);
             pinchCursor.classList.toggle('targeting', !!nearest);
             if (nearest) focusOrnament(nearest);
           } else {
@@ -1722,9 +1771,11 @@
         } else if (lastPinch) {
           pinchCursor.classList.remove('visible', 'targeting');
           releaseOrnament();
+          pinchFrames = 0;
           angularVelocity = lastWaveDir * BASE_ANGULAR;
           showGesture('🖐️', 'RELEASE', '装饰品返回树上', 45);
         } else if (gesture.fist) {
+          pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
           if (fistStartY === null) {
             fistStartY = landmarks[0].y;
@@ -1733,6 +1784,7 @@
           universe.position.y = THREE.MathUtils.clamp(universeStartY + (fistStartY - landmarks[0].y) * 145, -55, 55);
           showGesture('✊', 'FIST / PAN', '上下移动星系', Math.abs(fistStartY - landmarks[0].y) * 500);
         } else if (gesture.palm) {
+          pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
           fistStartY = null;
           const palmMin = 0.05;
@@ -1741,6 +1793,7 @@
           targetCameraZ = THREE.MathUtils.clamp(290 - palmRatio * 285, 5, 290);
           showGesture('🖐', 'PALM / ZOOM', `距离 ${Math.round(targetCameraZ)} AU`, Math.round(100 - (targetCameraZ - 5) / 2.85));
         } else {
+          pinchFrames = 0;
           pinchCursor.classList.remove('visible', 'targeting');
           fistStartY = null;
           showGesture(`☝️`, `FINGER SIGNAL / ${gesture.count}`, gesture.count ? '保持手势召唤文字' : '正在追踪右手', gesture.count * 22);
@@ -1990,6 +2043,15 @@
           }
         });
 
+        [hanText, jiangText].forEach((textPoints) => {
+          if (!textPoints) return;
+          const u = textPoints.userData;
+          textPoints.position.x = u.baseX + Math.sin(elapsed * .35 + u.phase) * .6;
+          textPoints.position.y = u.baseY + Math.cos(elapsed * .28 + u.phase2) * .4;
+          textPoints.position.z = u.baseZ + Math.sin(elapsed * .22 + u.phase) * .3;
+          textPoints.material.opacity = .5 + Math.sin(elapsed * .9 + u.phase) * .08;
+        });
+
         const proximity = THREE.MathUtils.clamp((128 - camera.position.z) / 76, 0, 1);
         cakePoints.material.uniforms.uTime.value = elapsed;
         cakePoints.material.uniforms.uBurst.value = proximity * proximity * .72;
@@ -2085,6 +2147,11 @@
       animate(0);
       setTimeout(() => loading.classList.add('hidden'), 900);
       setTimeout(() => showToast('双击装饰品聚焦 · 数字键 1–4 召唤文字'), 1350);
+      setTimeout(() => {
+        if (!cameraStream) startCamera().catch(() => {
+          showToast('请点击右上角“启动摄像头与手势识别”');
+        });
+      }, 1800);
     })();
   </script>
 </body>
