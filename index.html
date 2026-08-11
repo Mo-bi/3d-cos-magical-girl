@@ -1760,8 +1760,16 @@
             if (stableFingerCount === gesture.count) fingerCountFrames += 1;
             else { stableFingerCount = gesture.count; fingerCountFrames = 0; }
             if (fingerCountFrames === 16 && performance.now() - lastWordTime > 1800) {
-              const words = ['Wish', 'Magic', 'Bloom', 'Magical Cos'];
-              showParticleWord(words[gesture.count - 1]);
+              if (gesture.count === 1 && ornaments.length) {
+                // 1 指：随机选一张装饰品聚焦到屏幕前面
+                const idx = Math.floor(Math.random() * ornaments.length);
+                focusOrnament(ornaments[idx]);
+                showGesture('👉', 'FINGER 1 / RANDOM', `随机 ${ornaments[idx].userData.name}`, 100);
+              } else {
+                // 2-4 指：召唤文字
+                const words = ['Wish', 'Magic', 'Bloom', 'Magical Cos'];
+                showParticleWord(words[gesture.count - 1]);
+              }
               lastWordTime = performance.now();
             }
           } else {
