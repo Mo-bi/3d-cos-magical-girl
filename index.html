@@ -1080,52 +1080,6 @@
       const textParticles = createTextParticles();
       const textParticleColor = new THREE.Color();
 
-      function createBackgroundText(text, anchorX, anchorY, anchorZ, colorHex, scale) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 720; canvas.height = 720;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 560px "PingFang SC", "Microsoft YaHei", "Heiti SC", "STHeiti", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        const samples = [];
-        for (let y = 0; y < canvas.height; y += 4) {
-          for (let x = 0; x < canvas.width; x += 4) {
-            const idx = (y * canvas.width + x) * 4;
-            if (data[idx] > 128) samples.push([x, y]);
-          }
-        }
-        const count = samples.length;
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-        const baseColor = new THREE.Color(colorHex);
-        for (let i = 0; i < count; i += 1) {
-          positions[i * 3] = anchorX + (samples[i][0] - canvas.width / 2) * scale;
-          positions[i * 3 + 1] = anchorY - (samples[i][1] - canvas.height / 2) * scale;
-          positions[i * 3 + 2] = anchorZ;
-          const tint = .75 + Math.random() * .25;
-          colors[i * 3] = baseColor.r * tint;
-          colors[i * 3 + 1] = baseColor.g * tint;
-          colors[i * 3 + 2] = baseColor.b * tint;
-        }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        const material = new THREE.PointsMaterial({ size: 1.0, vertexColors: true, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending });
-        const points = new THREE.Points(geometry, material);
-        points.userData = { baseX: anchorX, baseY: anchorY, baseZ: anchorZ, phase: Math.random() * Math.PI * 2, phase2: Math.random() * Math.PI * 2 };
-        scene.add(points);
-        return points;
-      }
-
-      const hanText = createBackgroundText('寒', -22, 8, -10, 0xffb7d5, .06);
-      const jiangText = createBackgroundText('酱', 22, 8, -10, 0xc8a2ff, .06);
-
       function showParticleWord(text) {
         const canvas = document.createElement('canvas');
         canvas.width = 720;
@@ -2043,16 +1997,7 @@
           }
         });
 
-        [hanText, jiangText].forEach((textPoints) => {
-          if (!textPoints) return;
-          const u = textPoints.userData;
-          textPoints.position.x = u.baseX + Math.sin(elapsed * .35 + u.phase) * .6;
-          textPoints.position.y = u.baseY + Math.cos(elapsed * .28 + u.phase2) * .4;
-          textPoints.position.z = u.baseZ + Math.sin(elapsed * .22 + u.phase) * .3;
-          textPoints.material.opacity = .5 + Math.sin(elapsed * .9 + u.phase) * .08;
-        });
-
-        const proximity = THREE.MathUtils.clamp((128 - camera.position.z) / 76, 0, 1);
+const proximity = THREE.MathUtils.clamp((128 - camera.position.z) / 76, 0, 1);
         cakePoints.material.uniforms.uTime.value = elapsed;
         cakePoints.material.uniforms.uBurst.value = proximity * proximity * .72;
         energyCores.forEach((core) => {
